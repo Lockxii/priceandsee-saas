@@ -30,6 +30,12 @@ type JsonLdProduct = JsonRecord & {
 type BundlePrice = {
   name: string;
   price: number;
+  sku?: string;
+  id?: string | number;
+  url?: string;
+  available?: boolean;
+  image?: string;
+  options?: Record<string, unknown>;
 };
 
 type ExtractedProduct = {
@@ -199,11 +205,21 @@ function asString(value: unknown): string | undefined {
 function asBundlePrices(value: unknown): BundlePrice[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const bundles = value
-    .map((item) => {
+    .map((item): BundlePrice | null => {
       if (!item || typeof item !== "object") return null;
       const record = item as JsonRecord;
       const price = parsePrice(record.price as string | number | null | undefined);
-      return price === undefined ? null : { name: asString(record.name) || "Variant", price };
+      if (price === undefined) return null;
+      return {
+        name: asString(record.name) || "Variant",
+        price,
+        sku: asString(record.sku),
+        id: typeof record.id === "string" || typeof record.id === "number" ? record.id : undefined,
+        url: asString(record.url),
+        available: typeof record.available === "boolean" ? record.available : undefined,
+        image: asString(record.image),
+        options: isRecord(record.options) ? record.options : undefined,
+      };
     })
     .filter((item): item is BundlePrice => item !== null);
   return bundles.length ? bundles : undefined;

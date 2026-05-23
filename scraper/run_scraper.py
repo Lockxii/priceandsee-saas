@@ -263,7 +263,11 @@ def extract_product_from_node(node: dict[str, Any]) -> dict[str, Any]:
                 continue
             variant_data = extract_product_from_node(variant)
             if variant_data.get("price") is not None:
-                variant_prices.append({"name": variant_data.get("title") or variant_data.get("sku") or "Variant", "price": variant_data["price"]})
+                variant_prices.append({
+                    "name": variant_data.get("title") or variant_data.get("sku") or "Variant",
+                    "price": variant_data["price"],
+                    "sku": variant_data.get("sku"),
+                })
         if variant_prices and not data.get("bundlePrices"):
             data["bundlePrices"] = unique(variant_prices)[:30]
 
@@ -426,10 +430,18 @@ def extract_shopify_variants(page: Any) -> list[dict[str, Any]]:
                 price = clean_price(variant.get("price") or variant.get("compare_at_price"))
                 if price and price > 10000 and isinstance(variant.get("price"), int):
                     price = round(price / 100, 2)
-                variants.append({
+                item = {
                     "name": clean_text(variant.get("title") or variant.get("name") or variant.get("sku")) or "Variant",
                     "price": price,
-                })
+                    "sku": clean_text(variant.get("sku")),
+                    "id": variant.get("id"),
+                    "available": variant.get("available"),
+                    "url": f"?variant={variant.get('id')}" if variant.get("id") else None,
+                }
+                options = {k: clean_text(v) for k, v in variant.items() if re.match(r"option\d+", str(k)) and clean_text(v)}
+                if options:
+                    item["options"] = options
+                variants.append(item)
             if variants:
                 return unique(compact(variants))[:30]
     return []
