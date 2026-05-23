@@ -133,12 +133,12 @@ function metricText(metrics: BrandMetrics | null | undefined, keys: string[], fa
 
 function getMonthlyVisits(metrics?: BrandMetrics | null) {
   if (!metrics) return undefined;
-  return readNumberFromKeys(metrics, ["monthly_visits", "monthlyVisits", "visits", "estimated_monthly_visits", "traffic"]);
+  return readNumberFromKeys(metrics, ["monthly_visits", "monthlyVisits", "visits", "traffic"]);
 }
 
-function getEstimatedRevenue(metrics?: BrandMetrics | null) {
+function getRevenueMetric(metrics?: BrandMetrics | null) {
   if (!metrics) return undefined;
-  return readNumberFromKeys(metrics, ["estimated_revenue", "estimatedRevenue", "monthly_revenue", "revenue"]);
+  return readNumberFromKeys(metrics, ["monthly_revenue", "monthlyRevenue", "revenue"]);
 }
 
 function normalizeVisitHistory(metrics?: BrandMetrics | null) {
@@ -162,16 +162,7 @@ function normalizeVisitHistory(metrics?: BrandMetrics | null) {
     if (points.length) return points;
   }
 
-  const currentVisits = getMonthlyVisits(metrics);
-  if (!currentVisits) return undefined;
-
-  const shape = [1.18, 1.4, 1.34, 1.04, 0.82, 0.88, 1.04, 0.94, 0.82, 0.98, 1.18, 1];
-  const currentMonth = new Date().getMonth();
-
-  return shape.map((factor, index) => ({
-    month: MONTH_NAMES[(currentMonth - 11 + index + 12) % 12],
-    visits: Math.max(0, Math.round(currentVisits * factor)),
-  }));
+  return undefined;
 }
 
 function normalizeTrafficCountries(metrics?: BrandMetrics | null) {
@@ -230,22 +221,22 @@ function competitorDomain(item: JsonRecord) {
   try { return new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname.replace(/^www\./, ""); } catch { return raw; }
 }
 
-function competitorRevenue(item: JsonRecord, fallback: number, index: number) {
-  return readNumberFromKeys(item, ["revenue", "monthly_revenue", "estimated_revenue", "estimatedRevenue"]) || Math.round(fallback * (0.92 - index * 0.08));
+function competitorRevenue(item: JsonRecord) {
+  return readNumberFromKeys(item, ["revenue", "monthly_revenue", "monthlyRevenue"]);
 }
 
 function competitorKey(item: JsonRecord, index: number) {
   return `${competitorDomain(item)}-${index}`.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || `competitor_${index}`;
 }
 
-function competitorHistory(item: JsonRecord, fallbackRevenue: number, index: number) {
+function competitorHistory(item: JsonRecord) {
   const candidates = [item.revenue_history, item.revenueHistory, item.monthly_revenue_history, item.monthlyRevenueHistory, item.history];
   for (const candidate of candidates) {
     if (!Array.isArray(candidate)) continue;
     const points = candidate
       .map((point, pointIndex) => {
         if (!isRecord(point)) return null;
-        const revenue = readNumberFromKeys(point, ["revenue", "monthly_revenue", "monthlyRevenue", "value", "estimated_revenue"]);
+        const revenue = readNumberFromKeys(point, ["revenue", "monthly_revenue", "monthlyRevenue", "value"]);
         if (revenue === undefined) return null;
         return {
           month: asString(point.month) || asString(point.date) || asString(point.period) || MONTH_NAMES[pointIndex % 12],
@@ -257,29 +248,24 @@ function competitorHistory(item: JsonRecord, fallbackRevenue: number, index: num
     if (points.length >= 2) return points;
   }
 
-  const shape = [0.84, 0.91, 0.88, 0.97, 1.04, 1];
-  const currentMonth = new Date().getMonth();
-  return shape.map((factor, pointIndex) => {
-    const competitorTilt = 1 + (index - 1) * 0.018;
-    const wave = 1 + Math.sin((pointIndex + index) * 0.9) * 0.035;
-    return {
-      month: MONTH_NAMES[(currentMonth - 5 + pointIndex + 12) % 12],
-      revenue: Math.max(0, Math.round(fallbackRevenue * factor * competitorTilt * wave)),
-    };
-  });
+  return [];
 }
 
-function buildCompetitorSeries(competitors: JsonRecord[], fallbackRevenue: number) {
-  return competitors.slice(0, 6).map((item, index): CompetitorRevenueSeries => {
-    const revenue = competitorRevenue(item, fallbackRevenue, index);
+function buildCompetitorSeries(competitors: JsonRecord[]) {
+  return competitors.slice(0, 6).map((item, index): CompetitorRevenueSeries | null => {
+    const revenue = competitorRevenue(item);
+    const data = competitorHistory(item);
+    if (revenue === undefined && data.length < 2) return null;
+    const currentRevenue = revenue ?? data[data.length - 1]?.revenue;
+    if (currentRevenue === undefined) return null;
     return {
       key: competitorKey(item, index),
       name: competitorName(item),
       domain: competitorDomain(item),
-      revenue,
-      data: competitorHistory(item, revenue, index),
+      revenue: currentRevenue,
+      data,
     };
-  });
+  }).filter((item): item is CompetitorRevenueSeries => item !== null);
 }
 
 function bundleLabel(bundle: BundlePrice) {
@@ -600,24 +586,18 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
     if (!product) return null;
     const metrics = product.brandMetrics;
     const visits = getMonthlyVisits(metrics);
-    const revenue = getEstimatedRevenue(metrics) || (visits && product.currentPrice ? visits * product.currentPrice * 0.012 : undefined);
+    const revenue = getRevenueMetric(metrics);
     const competitors = normalizeCompetitors(metrics);
-    const fallbackCompetitors = competitors.length ? competitors : [
-      { name: `${product.brand || "Brand"} Lookalike`, domain: "similar-store.com" },
-      { name: "Shopify Beauty Peer", domain: "beauty-peer.co" },
-      { name: "DTC Category Rival", domain: "dtc-rival.com" },
-    ];
-    const competitorSeries = buildCompetitorSeries(fallbackCompetitors, revenue || 45000);
+    const competitorSeries = buildCompetitorSeries(competitors);
 
     return {
       visitHistory: normalizeVisitHistory(metrics),
       visitCountries: normalizeTrafficCountries(metrics),
       technologies: normalizeTechnologies(metrics),
-      competitors: fallbackCompetitors,
+      competitors,
       competitorSeries,
       revenue,
       visits,
-      isCompetitorFallback: competitors.length === 0,
     };
   }, [product]);
 
@@ -719,7 +699,6 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                             data={derived.visitHistory}
                             totalVisits={derived.visits}
                             countries={derived.visitCountries}
-                            estimated={!product.brandMetrics?.monthly_visits_history && !product.brandMetrics?.monthlyVisitsHistory && !product.brandMetrics?.visits_history && !product.brandMetrics?.traffic_history}
                             className="h-full min-h-[330px]"
                           />
                         ) : (
@@ -758,7 +737,14 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                 {activeTab === "Competitors" && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 h-full overflow-hidden">
                     <div className="lg:col-span-2 h-full min-h-0">
-                      <CompetitorRevenueChart series={derived.competitorSeries} currency={product.currency || "USD"} estimated={derived.isCompetitorFallback} />
+                      {derived.competitorSeries.length > 0 ? (
+                        <CompetitorRevenueChart series={derived.competitorSeries} currency={product.currency || "USD"} />
+                      ) : (
+                        <div className="flex h-full min-h-[330px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#f1ded1] bg-white text-[#8a7668] shadow-sm">
+                          <BarChart3 className="mb-2 h-8 w-8 opacity-50" />
+                          <span className="font-medium">Waiting for BrandSearch competitor revenue history...</span>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-4 overflow-hidden">
                       <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm">
@@ -767,10 +753,20 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                       </div>
                       <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm">
                         <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-[#ff690c]" />Similar shops</h3>
-                        <div className="space-y-2">{derived.competitors.slice(0, 4).map((item, index) => <div key={index} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#fffaf6] border border-[#f1ded1]"><div className="min-w-0"><p className="font-bold text-sm text-[#24170f] truncate">{competitorName(item)}</p><p className="text-xs text-[#8a7668] truncate">{competitorDomain(item)}</p></div><span className="text-xs font-black text-[#ff690c] whitespace-nowrap">{formatMoney(competitorRevenue(item, derived.revenue || 45000, index), product.currency || "USD")}</span></div>)}</div>
+                        <div className="space-y-2">
+                          {derived.competitors.length ? derived.competitors.slice(0, 4).map((item, index) => (
+                            <div key={index} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#fffaf6] border border-[#f1ded1]">
+                              <div className="min-w-0">
+                                <p className="font-bold text-sm text-[#24170f] truncate">{competitorName(item)}</p>
+                                <p className="text-xs text-[#8a7668] truncate">{competitorDomain(item)}</p>
+                              </div>
+                              <span className="text-xs font-black text-[#ff690c] whitespace-nowrap">{formatMoney(competitorRevenue(item), product.currency || "USD")}</span>
+                            </div>
+                          )) : <span className="text-xs text-[#a99485]">No similar shops from BrandSearch yet.</span>}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><DollarSign className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Est. revenue</p><p className="text-xl font-black text-[#24170f]">{formatMoney(derived.revenue, product.currency || "USD")}</p></div>
+                        <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><DollarSign className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Revenue</p><p className="text-xl font-black text-[#24170f]">{formatMoney(derived.revenue, product.currency || "USD")}</p></div>
                         <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><ActivityIcon className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Visits</p><p className="text-xl font-black text-[#24170f]">{formatCompact(derived.visits)}</p></div>
                       </div>
                     </div>

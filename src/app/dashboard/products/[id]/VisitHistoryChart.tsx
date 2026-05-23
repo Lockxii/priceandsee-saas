@@ -21,7 +21,6 @@ type VisitHistoryChartProps = {
   data: VisitPoint[];
   totalVisits?: number;
   countries?: TrafficCountry[];
-  estimated?: boolean;
   className?: string;
 };
 
@@ -68,7 +67,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
-export default function VisitHistoryChart({ data, totalVisits, countries = [], estimated = false, className = "" }: VisitHistoryChartProps) {
+export default function VisitHistoryChart({ data, totalVisits, countries = [], className = "" }: VisitHistoryChartProps) {
   const gradientId = useId().replace(/:/g, "");
   const currentVisits = totalVisits || data[data.length - 1]?.visits;
   const currentMonth = data[data.length - 1]?.month || "—";
@@ -121,13 +120,13 @@ export default function VisitHistoryChart({ data, totalVisits, countries = [], e
           </div>
         </div>
         <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-semibold text-[#8a7668]">
-          {estimated ? "estimated" : "BrandSearch"}
+          BrandSearch
         </span>
       </div>
 
-      <div className="mt-3 min-h-[220px] flex-1">
+      <div className="mt-3 min-h-[240px] flex-1 overflow-visible">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 24, right: 22, bottom: 0, left: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 38, right: 32, bottom: 0, left: 8 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor="#ff690c" stopOpacity={0.2} />
@@ -149,7 +148,7 @@ export default function VisitHistoryChart({ data, totalVisits, countries = [], e
               activeDot={{ r: 5, fill: "#ff690c", stroke: "#ffffff", strokeWidth: 2 }}
               isAnimationActive={false}
             >
-              <LabelList dataKey="visitLabel" position="top" offset={8} className="fill-[#24170f] text-[10px] font-black" />
+              <LabelList dataKey="visitLabel" position="top" offset={12} className="fill-[#24170f] text-[12px] font-black" />
             </Area>
           </AreaChart>
         </ResponsiveContainer>
@@ -165,7 +164,7 @@ export default function VisitHistoryChart({ data, totalVisits, countries = [], e
           ))
         ) : (
           <span className="text-xs font-medium text-[#8a7668]">
-            {estimated ? "Traffic curve estimated from the latest monthly visits signal." : "Traffic history pulled from BrandSearch."}
+            Traffic history pulled from BrandSearch.
           </span>
         )}
       </div>

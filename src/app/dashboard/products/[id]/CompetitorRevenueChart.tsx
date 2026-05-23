@@ -14,7 +14,6 @@ export type CompetitorRevenueSeries = {
 type CompetitorRevenueChartProps = {
   series: CompetitorRevenueSeries[];
   currency?: string;
-  estimated?: boolean;
   className?: string;
 };
 
@@ -50,7 +49,7 @@ function ChartTooltip({ active, payload, label, currency, focusedKey }: { active
   );
 }
 
-export default function CompetitorRevenueChart({ series, currency = "USD", estimated = false, className = "" }: CompetitorRevenueChartProps) {
+export default function CompetitorRevenueChart({ series, currency = "USD", className = "" }: CompetitorRevenueChartProps) {
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
@@ -136,7 +135,7 @@ export default function CompetitorRevenueChart({ series, currency = "USD", estim
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#f1ded1] pt-3 text-xs text-[#8a7668] flex-shrink-0">
-        <span>{estimated ? "Estimated trend from monthly revenue signal." : "Revenue history from BrandSearch / scraper data."}</span>
+        <span>Revenue history from BrandSearch / scraper data.</span>
         <span className="font-bold text-[#24170f]">Click a competitor to focus</span>
       </div>
     </div>
