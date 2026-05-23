@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { AlertSettingsClient } from "./AlertSettingsClient";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
@@ -56,36 +57,6 @@ export default async function SettingsPage() {
       </div>
 
       <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)]">
-        <h2 className="text-lg font-semibold text-[#24170f] mb-4">Preferences</h2>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-[#5b4638] mb-1">Language</label>
-              <select className="w-full px-4 py-2 bg-white border border-[#f1ded1] rounded-lg text-[#24170f] focus:outline-none focus:ring-2 focus:ring-[#ff690c]/20 focus:border-[#ff690c] transition-all">
-                <option>English</option>
-                <option>Français</option>
-                <option>Español</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#5b4638] mb-1">Timezone</label>
-              <select className="w-full px-4 py-2 bg-white border border-[#f1ded1] rounded-lg text-[#24170f] focus:outline-none focus:ring-2 focus:ring-[#ff690c]/20 focus:border-[#ff690c] transition-all">
-                <option>UTC (GMT+0)</option>
-                <option>CET (GMT+1)</option>
-                <option>EST (GMT-5)</option>
-                <option>PST (GMT-8)</option>
-              </select>
-            </div>
-          </div>
-          <div className="pt-2">
-            <button type="button" className="px-5 py-2.5 bg-white border border-[#e5d5c5] text-[#24170f] font-medium rounded-lg hover:bg-[#fffaf6] transition-colors shadow-sm">
-              Update Preferences
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)]">
         <h2 className="text-lg font-semibold text-[#24170f] mb-4">Billing & Plan</h2>
         <div className="flex items-center justify-between p-4 bg-[#fffaf6] border border-[#f1ded1] rounded-xl mb-6">
           <div>
@@ -100,36 +71,7 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)]">
-        <h2 className="text-lg font-semibold text-[#24170f] mb-4">Notifications</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-[#fffaf6] border border-[#f1ded1] rounded-xl">
-            <div>
-              <p className="font-medium text-[#24170f]">Email Alerts</p>
-              <p className="text-sm text-[#8a7668] mt-0.5">Receive an email when a tracked price changes.</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff690c]"></div>
-            </label>
-          </div>
-          <div className="flex items-center justify-between p-4 bg-[#fffaf6] border border-[#f1ded1] rounded-xl">
-            <div>
-              <p className="font-medium text-[#24170f]">Weekly Digest</p>
-              <p className="text-sm text-[#8a7668] mt-0.5">Receive a weekly summary of your tracked URLs.</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff690c]"></div>
-            </label>
-          </div>
-          <div className="pt-2">
-            <button type="button" className="px-5 py-2.5 bg-white border border-[#e5d5c5] text-[#24170f] font-medium rounded-lg hover:bg-[#fffaf6] transition-colors shadow-sm">
-              Save Notification Settings
-            </button>
-          </div>
-        </div>
-      </div>
+      <AlertSettingsClient />
 
       <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)]">
         <h2 className="text-lg font-semibold text-red-600 mb-4">Danger Zone</h2>
