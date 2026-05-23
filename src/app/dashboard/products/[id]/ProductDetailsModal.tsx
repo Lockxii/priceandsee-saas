@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2, Copy, Check } from "lucide-react";
-import PriceChart from "./PriceChart";
 import VisitHistoryChart, { type TrafficCountry } from "./VisitHistoryChart";
+import CompetitorRevenueChart, { type CompetitorRevenueSeries } from "./CompetitorRevenueChart";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -232,6 +232,54 @@ function competitorDomain(item: JsonRecord) {
 
 function competitorRevenue(item: JsonRecord, fallback: number, index: number) {
   return readNumberFromKeys(item, ["revenue", "monthly_revenue", "estimated_revenue", "estimatedRevenue"]) || Math.round(fallback * (0.92 - index * 0.08));
+}
+
+function competitorKey(item: JsonRecord, index: number) {
+  return `${competitorDomain(item)}-${index}`.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || `competitor_${index}`;
+}
+
+function competitorHistory(item: JsonRecord, fallbackRevenue: number, index: number) {
+  const candidates = [item.revenue_history, item.revenueHistory, item.monthly_revenue_history, item.monthlyRevenueHistory, item.history];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const points = candidate
+      .map((point, pointIndex) => {
+        if (!isRecord(point)) return null;
+        const revenue = readNumberFromKeys(point, ["revenue", "monthly_revenue", "monthlyRevenue", "value", "estimated_revenue"]);
+        if (revenue === undefined) return null;
+        return {
+          month: asString(point.month) || asString(point.date) || asString(point.period) || MONTH_NAMES[pointIndex % 12],
+          revenue,
+        };
+      })
+      .filter((point): point is { month: string; revenue: number } => point !== null)
+      .slice(-6);
+    if (points.length >= 2) return points;
+  }
+
+  const shape = [0.84, 0.91, 0.88, 0.97, 1.04, 1];
+  const currentMonth = new Date().getMonth();
+  return shape.map((factor, pointIndex) => {
+    const competitorTilt = 1 + (index - 1) * 0.018;
+    const wave = 1 + Math.sin((pointIndex + index) * 0.9) * 0.035;
+    return {
+      month: MONTH_NAMES[(currentMonth - 5 + pointIndex + 12) % 12],
+      revenue: Math.max(0, Math.round(fallbackRevenue * factor * competitorTilt * wave)),
+    };
+  });
+}
+
+function buildCompetitorSeries(competitors: JsonRecord[], fallbackRevenue: number) {
+  return competitors.slice(0, 6).map((item, index): CompetitorRevenueSeries => {
+    const revenue = competitorRevenue(item, fallbackRevenue, index);
+    return {
+      key: competitorKey(item, index),
+      name: competitorName(item),
+      domain: competitorDomain(item),
+      revenue,
+      data: competitorHistory(item, revenue, index),
+    };
+  });
 }
 
 function bundleLabel(bundle: BundlePrice) {
@@ -559,17 +607,14 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
       { name: "Shopify Beauty Peer", domain: "beauty-peer.co" },
       { name: "DTC Category Rival", domain: "dtc-rival.com" },
     ];
-    const competitorChart = fallbackCompetitors.slice(0, 5).map((item, index) => ({
-      name: competitorName(item),
-      revenue: competitorRevenue(item, revenue || 45000, index),
-    }));
+    const competitorSeries = buildCompetitorSeries(fallbackCompetitors, revenue || 45000);
 
     return {
       visitHistory: normalizeVisitHistory(metrics),
       visitCountries: normalizeTrafficCountries(metrics),
       technologies: normalizeTechnologies(metrics),
       competitors: fallbackCompetitors,
-      competitorChart,
+      competitorSeries,
       revenue,
       visits,
       isCompetitorFallback: competitors.length === 0,
@@ -712,9 +757,8 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
 
                 {activeTab === "Competitors" && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 h-full overflow-hidden">
-                    <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
-                      <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Competitor revenue map</h3>{derived.isCompetitorFallback && <span className="text-xs text-[#a99485]">estimated fallback</span>}</div>
-                      <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-4 flex-1 min-h-[300px]"><PriceChart data={derived.competitorChart} valueKey="revenue" dateKey="name" stroke="#ff690c" valuePrefix="" heightClassName="h-full" valueFormatter={(value) => formatMoney(value, product.currency || "USD")} /></div>
+                    <div className="lg:col-span-2 h-full min-h-0">
+                      <CompetitorRevenueChart series={derived.competitorSeries} currency={product.currency || "USD"} estimated={derived.isCompetitorFallback} />
                     </div>
                     <div className="space-y-4 overflow-hidden">
                       <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm">
