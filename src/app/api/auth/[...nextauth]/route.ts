@@ -36,6 +36,7 @@ const handler = NextAuth({
   session: {
     strategy: "jwt",
   },
+  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-key-please-change",
   callbacks: {
     async session({ session, token }) {
       if (token && session.user) {
