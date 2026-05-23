@@ -60,13 +60,18 @@ export default function TarifsPage() {
                 </div>
 
                 <div className="mb-2 flex items-end gap-2">
-                  <span className="text-[56px] font-[800] text-[#ff690c] tracking-tighter leading-none">
-                    {plan.monthlyPrice}€
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[56px] font-[800] text-[#ff690c] tracking-tighter leading-none">
+                      {plan.monthlyPrice}€
+                    </span>
+                    <span className="rounded-full bg-[#fff2e8] px-2.5 py-1 text-[11px] font-bold text-[#ff690c]">
+                      -20% annuel
+                    </span>
+                  </div>
                   <span className="text-[15px] font-medium text-[#888] pb-2">/mois</span>
                 </div>
                 <p className="text-[13px] text-[#888] mb-8">
-                  Passe à {plan.yearlyPrice}€/mois avec la facturation annuelle.
+                  Passe à {plan.yearlyPrice}€/mois avec -20% en facturation annuelle.
                 </p>
 
                 <Link href="/register" className="w-full mb-8">

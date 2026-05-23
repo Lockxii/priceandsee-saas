@@ -31,7 +31,7 @@ export const pricingPlans: PricingPlan[] = [
   {
     name: "Growth",
     monthlyPrice: "39",
-    yearlyPrice: "29",
+    yearlyPrice: "31",
     popular: true,
     description: "Le meilleur choix pour suivre plus de concurrents et réagir plus vite aux changements.",
     features: [
@@ -45,7 +45,7 @@ export const pricingPlans: PricingPlan[] = [
   {
     name: "Scale",
     monthlyPrice: "79",
-    yearlyPrice: "59",
+    yearlyPrice: "63",
     description: "Pour les équipes qui veulent monitorer un catalogue plus large avec des checks rapides.",
     features: [
       { label: "URLs concurrentes", value: "500", included: true, highlight: true },
