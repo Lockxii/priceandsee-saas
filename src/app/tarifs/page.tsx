@@ -105,29 +105,33 @@ export default function TarifsPage() {
       </main>
 
       {/* Massive Brand Wordmark Section */}
-      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-16 relative select-none pointer-events-none">
+      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-10 relative select-none pointer-events-none">
         <svg
           aria-hidden="true"
-          viewBox="0 0 1500 190"
-          className="relative z-0 w-[124vw] max-w-none h-auto -mb-2"
+          viewBox="0 0 1500 235"
+          className="relative z-0 w-[138vw] max-w-none h-auto -mb-7"
         >
           <defs>
+            <linearGradient id="pricing-wordmark-gradient" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#ff690c" stopOpacity="0.12" />
+              <stop offset="58%" stopColor="#ff690c" stopOpacity="0.24" />
+              <stop offset="100%" stopColor="#ff690c" stopOpacity="0.42" />
+            </linearGradient>
             <filter id="pricing-wordmark-outer-line">
-              <feMorphology in="SourceGraphic" operator="dilate" radius="1.15" result="expanded" />
+              <feMorphology in="SourceGraphic" operator="dilate" radius="1.35" result="expanded" />
             </filter>
           </defs>
 
           <text
             x="50%"
-            y="70%"
+            y="76%"
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#ff690c"
-            fillOpacity="0.22"
+            fill="url(#pricing-wordmark-gradient)"
             filter="url(#pricing-wordmark-outer-line)"
-            fontSize="178"
+            fontSize="228"
             fontWeight="900"
-            letterSpacing="-9"
+            letterSpacing="-12"
             fontFamily="var(--font-montserrat), sans-serif"
           >
             PRICEANDSEE
@@ -135,13 +139,13 @@ export default function TarifsPage() {
 
           <text
             x="50%"
-            y="70%"
+            y="76%"
             textAnchor="middle"
             dominantBaseline="middle"
             fill="white"
-            fontSize="178"
+            fontSize="228"
             fontWeight="900"
-            letterSpacing="-9"
+            letterSpacing="-12"
             fontFamily="var(--font-montserrat), sans-serif"
           >
             PRICEANDSEE
