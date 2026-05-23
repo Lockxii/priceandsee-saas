@@ -160,7 +160,7 @@ function getRevenueMetric(metrics?: BrandMetrics | null) {
   return readNumberFromKeys(metrics, ["monthly_revenue", "monthlyRevenue", "revenue"]);
 }
 
-function normalizeVisitHistory(metrics?: BrandMetrics | null) {
+function normalizeVisitHistory(metrics?: BrandMetrics | null, latestVisits?: number) {
   if (!metrics) return undefined;
   const candidates = [metrics.monthly_visits_history, metrics.monthlyVisitsHistory, metrics.visits_history, metrics.traffic_history, metrics.history];
 
@@ -181,7 +181,7 @@ function normalizeVisitHistory(metrics?: BrandMetrics | null) {
     if (points.length) return points;
   }
 
-  return undefined;
+  return latestVisits !== undefined ? [{ month: "Latest", visits: latestVisits }] : undefined;
 }
 
 function normalizeTrafficCountries(metrics?: BrandMetrics | null) {
@@ -529,9 +529,45 @@ function downloadTextFile(filename: string, content: string, type = "text/plain"
   URL.revokeObjectURL(url);
 }
 
+function productMediaItems(product: ProductDetails) {
+  return product.productMedia?.length ? product.productMedia : product.image ? [{ url: product.image, alt: product.title || "Product image", source: "primary", type: "image" }] : [];
+}
+
+function ProductPhotoCard({ product }: { product: ProductDetails }) {
+  const media = productMediaItems(product);
+  const primary = media[0];
+  return (
+    <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[1.15] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[210px]">
+      <div className="flex items-center justify-between gap-3 mb-3 flex-shrink-0">
+        <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3"><Images className="w-5 h-5 text-[#ff690c]" />Product photo</h3>
+        {media.length > 1 && <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-2.5 py-1">{media.length} imgs</span>}
+      </div>
+      <div className="flex-1 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] overflow-hidden flex items-center justify-center p-3">
+        {primary ? (
+          <img src={primary.url} alt={primary.alt || product.title || "Product"} className="h-full w-full object-contain drop-shadow-sm" />
+        ) : (
+          <div className="text-center text-[#8a7668]">
+            <Package className="w-9 h-9 mx-auto mb-2 text-[#ff690c] opacity-60" />
+            <p className="text-sm font-bold text-[#24170f]">No product image</p>
+          </div>
+        )}
+      </div>
+      {media.length > 1 && (
+        <div className="mt-3 grid grid-cols-4 gap-2 flex-shrink-0">
+          {media.slice(1, 5).map((item, index) => (
+            <div key={`${item.url}-${index}`} className="aspect-square rounded-lg border border-[#f1ded1] bg-[#fffaf6] overflow-hidden p-1">
+              <img src={item.url} alt={item.alt || `Product ${index + 2}`} className="h-full w-full object-contain" />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   const [copiedReviews, setCopiedReviews] = useState(false);
-  const media = product.productMedia?.length ? product.productMedia : product.image ? [{ url: product.image, alt: product.title || "Product image", source: "primary", type: "image" }] : [];
+  const media = productMediaItems(product);
   const reviews = product.productReviews || [];
   const reviewsCsv = reviewsToCsv(reviews);
 
@@ -855,7 +891,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
     const competitorSeries = buildCompetitorSeries(competitors);
 
     return {
-      visitHistory: normalizeVisitHistory(metrics),
+      visitHistory: normalizeVisitHistory(metrics, visits),
       visitCountries: normalizeTrafficCountries(metrics),
       technologies: normalizeTechnologies(metrics),
       competitors,
@@ -976,9 +1012,10 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                       </div>
 
                       <div className="lg:col-span-1 h-full flex flex-col gap-4 sm:gap-5 overflow-hidden">
-                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-1 flex flex-col p-4 sm:p-5 overflow-hidden">
+                        <ProductPhotoCard product={product} />
+                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.85] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[155px]">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-3 flex-shrink-0"><AlignLeft className="w-5 h-5 text-[#ff690c]" />Description</h3>
-                          <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[8]">{product.description || "No description available for this product."}</p>
+                          <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[5]">{product.description || "No description available for this product."}</p>
                         </div>
                         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Product Info</h3>

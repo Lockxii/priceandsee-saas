@@ -2,7 +2,7 @@
 
 import { useId, useMemo } from "react";
 import { TrendingUp } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export type TrafficCountry = {
   label: string;
@@ -69,6 +69,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 
 export default function VisitHistoryChart({ data, totalVisits, countries = [], className = "" }: VisitHistoryChartProps) {
   const gradientId = useId().replace(/:/g, "");
+  const barGradientId = `${gradientId}bar`;
   const currentVisits = totalVisits || data[data.length - 1]?.visits;
   const currentMonth = data[data.length - 1]?.month || "—";
 
@@ -114,9 +115,17 @@ export default function VisitHistoryChart({ data, totalVisits, countries = [], c
             <span className="text-sm font-medium text-[#6f7b8a]">monthly visits · {currentMonth}</span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <GrowthPill label="1M" value={growthFor(data, 1)} />
-            <GrowthPill label="3M" value={growthFor(data, 3)} />
-            <GrowthPill label="6M" value={growthFor(data, 6)} />
+            {data.length > 1 ? (
+              <>
+                <GrowthPill label="1M" value={growthFor(data, 1)} />
+                <GrowthPill label="3M" value={growthFor(data, 3)} />
+                <GrowthPill label="6M" value={growthFor(data, 6)} />
+              </>
+            ) : (
+              <div className="inline-flex items-center gap-1 rounded-md border border-[#f1ded1] bg-[#fffaf6] px-2 py-1 text-xs font-semibold text-[#8a7668] shadow-[0_1px_0_rgba(36,23,15,0.03)]">
+                Latest BrandSearch signal
+              </div>
+            )}
           </div>
         </div>
         <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-semibold text-[#8a7668]">
@@ -126,31 +135,49 @@ export default function VisitHistoryChart({ data, totalVisits, countries = [], c
 
       <div className="mt-3 min-h-[240px] flex-1 overflow-visible">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 38, right: 32, bottom: 0, left: 8 }}>
-            <defs>
-              <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#ff690c" stopOpacity={0.2} />
-                <stop offset="75%" stopColor="#ff690c" stopOpacity={0.03} />
-                <stop offset="100%" stopColor="#ff690c" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} stroke="#efe6de" strokeDasharray="0" />
-            <XAxis dataKey="month" axisLine={false} tickLine={false} tickMargin={12} stroke="#8f9aaa" fontSize={12} />
-            <YAxis axisLine={false} tickLine={false} width={42} stroke="#8f9aaa" fontSize={12} tickFormatter={(value) => formatCompact(Number(value))} />
-            <Tooltip cursor={{ stroke: "#ff690c", strokeOpacity: 0.16 }} content={<ChartTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="visits"
-              stroke="#ff690c"
-              strokeWidth={2.25}
-              fill={`url(#${gradientId})`}
-              dot={{ r: 2.5, fill: "#ff690c", stroke: "#fffaf6", strokeWidth: 1.5 }}
-              activeDot={{ r: 5, fill: "#ff690c", stroke: "#ffffff", strokeWidth: 2 }}
-              isAnimationActive={false}
-            >
-              <LabelList dataKey="visitLabel" position="top" offset={12} className="fill-[#24170f] text-[12px] font-black" />
-            </Area>
-          </AreaChart>
+          {data.length > 1 ? (
+            <AreaChart data={chartData} margin={{ top: 38, right: 32, bottom: 0, left: 8 }}>
+              <defs>
+                <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="#ff690c" stopOpacity={0.2} />
+                  <stop offset="75%" stopColor="#ff690c" stopOpacity={0.03} />
+                  <stop offset="100%" stopColor="#ff690c" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#efe6de" strokeDasharray="0" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tickMargin={12} stroke="#8f9aaa" fontSize={12} />
+              <YAxis axisLine={false} tickLine={false} width={42} stroke="#8f9aaa" fontSize={12} tickFormatter={(value) => formatCompact(Number(value))} />
+              <Tooltip cursor={{ stroke: "#ff690c", strokeOpacity: 0.16 }} content={<ChartTooltip />} />
+              <Area
+                type="monotone"
+                dataKey="visits"
+                stroke="#ff690c"
+                strokeWidth={2.25}
+                fill={`url(#${gradientId})`}
+                dot={{ r: 2.5, fill: "#ff690c", stroke: "#fffaf6", strokeWidth: 1.5 }}
+                activeDot={{ r: 5, fill: "#ff690c", stroke: "#ffffff", strokeWidth: 2 }}
+                isAnimationActive={false}
+              >
+                <LabelList dataKey="visitLabel" position="top" offset={12} className="fill-[#24170f] text-[12px] font-black" />
+              </Area>
+            </AreaChart>
+          ) : (
+            <BarChart data={chartData} margin={{ top: 38, right: 32, bottom: 0, left: 8 }}>
+              <defs>
+                <linearGradient id={barGradientId} x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="#ff690c" stopOpacity={0.95} />
+                  <stop offset="100%" stopColor="#ff690c" stopOpacity={0.28} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#efe6de" strokeDasharray="0" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tickMargin={12} stroke="#8f9aaa" fontSize={12} />
+              <YAxis axisLine={false} tickLine={false} width={42} stroke="#8f9aaa" fontSize={12} tickFormatter={(value) => formatCompact(Number(value))} />
+              <Tooltip cursor={{ fill: "rgba(255,105,12,0.08)" }} content={<ChartTooltip />} />
+              <Bar dataKey="visits" fill={`url(#${barGradientId})`} radius={[18, 18, 8, 8]} barSize={110} isAnimationActive={false}>
+                <LabelList dataKey="visitLabel" position="top" offset={12} className="fill-[#24170f] text-[12px] font-black" />
+              </Bar>
+            </BarChart>
+          )}
         </ResponsiveContainer>
       </div>
 
@@ -164,7 +191,7 @@ export default function VisitHistoryChart({ data, totalVisits, countries = [], c
           ))
         ) : (
           <span className="text-xs font-medium text-[#8a7668]">
-            Traffic history pulled from BrandSearch.
+            {data.length > 1 ? "Traffic history pulled from BrandSearch." : "Only the latest BrandSearch visit signal is available."}
           </span>
         )}
       </div>
