@@ -51,7 +51,7 @@ export default function Home() {
         {/* Gradient overlay to fade out the bottom of the text */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white z-10" />
         <h2 
-          className="text-[17vw] leading-[0.8] font-black uppercase tracking-tighter text-transparent" 
+          className="text-[14vw] leading-[0.8] font-black uppercase text-transparent relative z-0" 
           style={{ WebkitTextStroke: '1.5px rgba(255, 105, 12, 0.3)' }}
         >
           PRICEANDSEE
