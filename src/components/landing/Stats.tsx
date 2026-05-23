@@ -10,7 +10,7 @@ const stats = [
 
 export function Stats() {
   return (
-    <section className="w-full bg-[#fff8f5]/80 border-b border-[#ebebeb]/60 py-16 flex justify-center items-center">
+    <section className="w-full bg-[#fff2e8] border-b border-[#ebebeb] py-8 flex justify-center items-center">
       <div className="max-w-[1180px] w-full px-6 flex flex-col md:flex-row justify-center items-center gap-16 md:gap-32">
         {stats.map((stat, i) => (
           <motion.div 
