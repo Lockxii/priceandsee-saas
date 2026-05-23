@@ -451,21 +451,6 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-function bundleEmbed(product: ProductDetails, bundles: BundlePrice[]) {
-  const currency = product.currency || "USD";
-  const title = escapeHtml(product.title || "Bundle offer");
-  return `<section class="pas-bundles" aria-label="Bundle offer">
-  <div class="pas-bundles__header">
-    <p class="pas-bundles__eyebrow">Bundle offer</p>
-    <h3>${title}</h3>
-  </div>
-${bundles.map((bundle, index) => `  <button class="pas-bundle${index === 0 ? " is-selected" : ""}" type="button" data-bundle="${escapeHtml(bundleLabel(bundle))}" data-price="${bundle.price}">
-    <span>${escapeHtml(bundleLabel(bundle))}</span>
-    <strong>${escapeHtml(String(bundle.price))} ${escapeHtml(currency)}</strong>
-  </button>`).join("\n")}
-</section>`;
-}
-
 function bundlePreviewCss() {
   return `.pas-bundles{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#24170f;background:#fffaf6;border:1px solid #f1ded1;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(36,23,15,.08)}
 .pas-bundles__header{margin-bottom:12px}.pas-bundles__eyebrow{margin:0 0 4px;color:#ff690c;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.pas-bundles h3{margin:0;font-size:16px;line-height:1.2}.pas-bundle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;border:1px solid #f1ded1;border-radius:14px;background:white;padding:13px 14px;color:#5b4638;font-weight:800;cursor:pointer}.pas-bundle.is-selected,.pas-bundle:hover{border-color:#ff690c;box-shadow:0 0 0 2px rgba(255,105,12,.12)}.pas-bundle strong{color:#24170f;background:#fffaf6;border:1px solid #f1ded1;border-radius:10px;padding:5px 8px;white-space:nowrap}`;
@@ -497,11 +482,9 @@ function htmlToPlainText(markup: string) {
 
 function BundleWidgetPreview({ product }: { product: ProductDetails }) {
   const [copied, setCopied] = useState(false);
-  const fallbackHtml = product.bundlePrices?.length ? bundleEmbed(product, product.bundlePrices) : "";
-  const html = product.bundleWidget?.html || fallbackHtml;
+  const html = product.bundleWidget?.html || "";
   const css = product.bundleWidget?.css || [];
   const assets = product.bundleWidget?.assets || [];
-  const isScraped = Boolean(product.bundleWidget?.html);
   const exportHtml = html ? bundleExportHtml(html, css, assets) : "";
   const previewDoc = html ? bundlePreviewDocument(html, css) : "";
   const previewText = html ? htmlToPlainText(html).slice(0, 180) : "";
@@ -518,7 +501,7 @@ function BundleWidgetPreview({ product }: { product: ProductDetails }) {
       <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
         <div>
           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Code2 className="w-4 h-4 text-[#ff690c]" />Bundle preview</h3>
-          <p className="text-sm text-[#8a7668] mt-2">{isScraped ? "Real widget HTML scraped from the product page." : "Clean preview rebuilt from detected Shopify variants."}</p>
+          <p className="text-sm text-[#8a7668] mt-2">Real widget HTML scraped from the product page.</p>
         </div>
         <button onClick={handleCopy} disabled={!html} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#24170f] text-[#fffaf6] text-xs font-black hover:bg-[#3a281d] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
           {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -534,7 +517,7 @@ function BundleWidgetPreview({ product }: { product: ProductDetails }) {
           <div className="mt-3 grid grid-cols-2 gap-3 flex-shrink-0">
             <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
               <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485] mb-1">Detected</p>
-              <p className="text-xs font-bold text-[#24170f] truncate">{product.bundleWidget?.source || (isScraped ? "bundle widget" : "variant fallback")}</p>
+              <p className="text-xs font-bold text-[#24170f] truncate">{product.bundleWidget?.source || "bundle widget"}</p>
             </div>
             <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
               <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485] mb-1">Assets</p>
