@@ -49,25 +49,25 @@ export default function Home() {
       </main>
 
       {/* Massive Brand Wordmark Section */}
-      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-20 relative select-none pointer-events-none">
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white via-white/80 to-transparent z-10" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,105,12,0.035),transparent_58%)]" />
+      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-16 relative select-none pointer-events-none">
         <svg
           aria-hidden="true"
-          viewBox="0 0 1400 210"
-          className="relative z-0 w-[118vw] max-w-none h-auto -mb-1"
+          viewBox="0 0 1500 190"
+          className="relative z-0 w-[124vw] max-w-none h-auto -mb-2 opacity-100"
         >
           <text
             x="50%"
-            y="78%"
+            y="70%"
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="none"
-            stroke="rgba(255, 105, 12, 0.28)"
-            strokeWidth="1.2"
-            fontSize="185"
+            fill="transparent"
+            stroke="#ff690c"
+            strokeOpacity="0.34"
+            strokeWidth="1.05"
+            paintOrder="stroke"
+            fontSize="178"
             fontWeight="900"
-            letterSpacing="-8"
+            letterSpacing="-9"
             fontFamily="var(--font-montserrat), sans-serif"
           >
             PRICEANDSEE
