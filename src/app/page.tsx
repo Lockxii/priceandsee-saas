@@ -9,7 +9,7 @@ import { Cta } from "@/components/landing/Cta";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#fafafa] flex flex-col font-sans selection:bg-[#ff690c] selection:text-white">
+    <div className="min-h-screen bg-[#fafafa] flex flex-col font-sans selection:bg-[#ff690c] selection:text-white overflow-x-hidden">
       {/* Blurred Header */}
       <header className="fixed top-0 left-0 z-50 flex h-[70px] w-full items-center border-b border-[#ebebeb]/85 bg-white/70 backdrop-blur-[16px] supports-[backdrop-filter]:bg-white/60">
         <div className="w-full max-w-[1180px] mx-auto px-6 flex justify-between items-center">

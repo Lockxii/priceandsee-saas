@@ -6,10 +6,10 @@ import { ArrowRight, Star, Clock, TrendingUp } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden min-h-[calc(100vh-70px)] pt-20 pb-20 w-full flex flex-col items-center justify-center border-b border-[#ebebeb]/60">
+    <section className="relative min-h-[calc(100vh-70px)] pt-20 pb-20 w-full flex flex-col items-center justify-center border-b border-[#ebebeb]/60">
       
       {/* Background Grid Lines (Whoscale style) */}
-      <div className="absolute inset-0 w-full h-full pointer-events-none z-0 flex justify-center">
+      <div className="absolute inset-0 w-full h-full pointer-events-none z-0 flex justify-center [mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]">
         {/* Horizontal top line */}
         <div className="absolute top-[80px] w-full h-[1px] bg-gradient-to-r from-transparent via-[#ff690c]/30 to-transparent" />
         
@@ -18,14 +18,14 @@ export function Hero() {
       </div>
 
       {/* Background Animated Blurs */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[1000px] h-[600px] pointer-events-none z-0 overflow-hidden">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[100%] pointer-events-none z-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]">
         <motion.div 
           animate={{ 
             x: [0, 60, 0, -60, 0],
             y: [0, -40, 0, 40, 0],
           }}
           transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[20%] left-[20%] w-[500px] h-[500px] bg-[#ff690c]/[0.08] rounded-full blur-[100px]" 
+          className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[#ff690c]/[0.08] rounded-full blur-[100px]" 
         />
         <motion.div 
           animate={{ 
@@ -33,7 +33,7 @@ export function Hero() {
             y: [0, 40, 0, -40, 0],
           }}
           transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[20%] right-[20%] w-[400px] h-[400px] bg-[#ffeed1]/[0.4] rounded-full blur-[100px]" 
+          className="absolute bottom-[20%] right-1/2 translate-x-1/2 w-[400px] h-[400px] bg-[#ffeed1]/[0.4] rounded-full blur-[100px]" 
         />
       </div>
       
