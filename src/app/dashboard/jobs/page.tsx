@@ -25,7 +25,7 @@ export default async function ScrapeJobsPage() {
           {jobs.length === 0 ? (
             <div className="p-8 text-center text-slate-500">No jobs recorded yet.</div>
           ) : (
-            jobs.map((job) => (
+            jobs.map((job: any) => (
               <div key={job.id} className="p-6 flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-1">

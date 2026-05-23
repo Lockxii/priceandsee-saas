@@ -86,7 +86,7 @@ export default async function ProductDetails({ params }: { params: { id: string 
           <h2 className="text-lg font-semibold text-slate-800">Recent Checks</h2>
         </div>
         <div className="divide-y divide-slate-100">
-          {product.scrapingJobs.map(job => (
+          {product.scrapingJobs.map((job: any) => (
             <div key={job.id} className="px-6 py-4 flex items-center justify-between">
               <div>
                 <p className="font-medium text-slate-900">{new Date(job.createdAt).toLocaleString()}</p>

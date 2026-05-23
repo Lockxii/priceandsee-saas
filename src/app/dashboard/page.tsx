@@ -61,7 +61,7 @@ export default async function DashboardOverview() {
               No scrape jobs yet. Add a product to start monitoring.
             </div>
           ) : (
-            recentJobs.map(job => (
+            recentJobs.map((job: any) => (
               <div key={job.id} className="px-6 py-4 flex items-center justify-between">
                 <div>
                   <p className="font-medium text-slate-900">{job.product.url}</p>
