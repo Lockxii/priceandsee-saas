@@ -480,6 +480,67 @@ function htmlToPlainText(markup: string) {
   return div.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
+function TrafficSnapshotPanel({ visits, revenue, countries, currency }: { visits?: number; revenue?: number; countries: TrafficCountry[]; currency: string }) {
+  const hasSignals = visits !== undefined || revenue !== undefined || countries.length > 0;
+
+  if (!hasSignals) {
+    return (
+      <div className="h-full min-h-[220px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+        <div className="flex items-start justify-between gap-3 flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
+            <p className="mt-1 text-sm text-[#8a7668]">No BrandSearch traffic data yet.</p>
+          </div>
+          <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
+        </div>
+        <div className="mt-5 rounded-2xl border border-dashed border-[#f1ded1] bg-[#fffaf6] p-5 text-sm text-[#8a7668]">
+          Run a fresh scrape or wait for BrandSearch to return traffic metrics for this domain.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full min-h-[330px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+      <div className="flex items-start justify-between gap-3 flex-shrink-0">
+        <div>
+          <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
+          <p className="mt-1 text-sm text-[#8a7668]">Latest BrandSearch signals, no monthly history yet.</p>
+        </div>
+        <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Monthly visits</p>
+          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatCompact(visits)}</p>
+          <p className="mt-2 text-xs font-medium text-[#8a7668]">Latest BrandSearch signal.</p>
+        </div>
+        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Revenue</p>
+          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatMoney(revenue, currency)}</p>
+          <p className="mt-2 text-xs font-medium text-[#8a7668]">Only displayed when returned by BrandSearch.</p>
+        </div>
+        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Top countries</p>
+          {countries.length ? (
+            <div className="mt-3 space-y-2">
+              {countries.slice(0, 4).map((country) => (
+                <div key={`${country.label}-${country.share}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#f1ded1] bg-white px-3 py-2">
+                  <span className="min-w-0 truncate text-sm font-bold text-[#5b4638]"><span className="mr-2">{country.flag || "🌐"}</span>{country.label}</span>
+                  <span className="text-sm font-black text-[#ff690c]">{Number(country.share).toFixed(country.share % 1 ? 1 : 0)}%</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[#8a7668]">No country split returned.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BundleWidgetPreview({ product }: { product: ProductDetails }) {
   const [copied, setCopied] = useState(false);
   const html = product.bundleWidget?.html || "";
@@ -685,10 +746,12 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                             className="h-full min-h-[330px]"
                           />
                         ) : (
-                          <div className="flex h-full min-h-[330px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#f1ded1] bg-white text-[#8a7668] shadow-sm">
-                            <BarChart3 className="mb-2 h-8 w-8 opacity-50" />
-                            <span className="font-medium">Waiting for BrandSearch traffic data...</span>
-                          </div>
+                          <TrafficSnapshotPanel
+                            visits={derived.visits}
+                            revenue={derived.revenue}
+                            countries={derived.visitCountries}
+                            currency={product.currency || "USD"}
+                          />
                         )}
                       </div>
 
