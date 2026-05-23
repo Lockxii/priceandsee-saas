@@ -61,9 +61,9 @@ export function Cta() {
               <ArrowRight className="w-5 h-5" />
             </button>
           </Link>
-          <Link href="#pricing">
+          <Link href="/tarifs">
             <button className="flex items-center justify-center bg-white text-[#35251c] border border-[#ebebeb] shadow-sm px-8 h-[52px] rounded-full font-bold text-[15px] hover:bg-slate-50 transition-colors">
-              Réserver une démo
+              Voir les tarifs
             </button>
           </Link>
         </motion.div>

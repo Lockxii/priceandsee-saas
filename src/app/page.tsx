@@ -5,7 +5,6 @@ import { Stats } from "@/components/landing/Stats";
 import { Testimonials } from "@/components/landing/Testimonials";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Features } from "@/components/landing/Features";
-import { Pricing } from "@/components/landing/Pricing";
 import { Faq } from "@/components/landing/Faq";
 import { Cta } from "@/components/landing/Cta";
 
@@ -26,7 +25,7 @@ export default function Home() {
           <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-[#ebebeb] bg-white p-1.5 shadow-[0_2px_15px_rgba(0,0,0,0.04)]">
             <Link href="#how-it-works" className="text-[#474747] hover:bg-[#fafafa] hover:text-black relative flex h-9 items-center rounded-full px-6 text-[14px] font-medium transition-colors">Comment ça marche</Link>
             <Link href="#features" className="text-[#474747] hover:bg-[#fafafa] hover:text-black relative flex h-9 items-center rounded-full px-6 text-[14px] font-medium transition-colors">Fonctionnalités</Link>
-            <Link href="#pricing" className="text-[#474747] hover:bg-[#fafafa] hover:text-black relative flex h-9 items-center rounded-full px-6 text-[14px] font-medium transition-colors">Tarifs</Link>
+            <Link href="/tarifs" className="text-[#474747] hover:bg-[#fafafa] hover:text-black relative flex h-9 items-center rounded-full px-6 text-[14px] font-medium transition-colors">Tarifs</Link>
           </nav>
 
           <div className="flex gap-6 items-center">
@@ -45,7 +44,6 @@ export default function Home() {
         <Testimonials />
         <div id="how-it-works"><HowItWorks /></div>
         <Features />
-        <Pricing />
         <Faq />
         <Cta />
       </main>
