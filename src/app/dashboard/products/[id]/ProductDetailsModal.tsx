@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2, Copy, Check } from "lucide-react";
 import PriceChart from "./PriceChart";
 import VisitHistoryChart, { type TrafficCountry } from "./VisitHistoryChart";
 
@@ -43,6 +43,22 @@ type BundlePrice = {
   options?: Record<string, unknown>;
 };
 
+type BundleWidgetAsset = {
+  type?: string;
+  url: string;
+  source?: string;
+};
+
+type BundleWidget = {
+  html: string;
+  css?: string[];
+  assets?: BundleWidgetAsset[];
+  source?: string;
+  detectedBy?: string;
+  score?: number;
+  text?: string;
+};
+
 type ScrapingJob = {
   id: string;
   createdAt: string;
@@ -66,6 +82,7 @@ type ProductDetails = {
   rating?: number | null;
   reviewsCount?: number | null;
   bundlePrices?: BundlePrice[] | null;
+  bundleWidget?: BundleWidget | null;
   scrapingJobs?: ScrapingJob[];
   lastCheckedAt?: string | null;
   error?: string;
@@ -221,9 +238,126 @@ function bundleLabel(bundle: BundlePrice) {
   return bundle.name.replace(/\s+/g, " ").trim();
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function bundleEmbed(product: ProductDetails, bundles: BundlePrice[]) {
   const currency = product.currency || "USD";
-  return `<div class="pas-bundles">\n${bundles.map((bundle) => `  <button class="pas-bundle" data-bundle="${bundleLabel(bundle)}" data-price="${bundle.price}">\n    <span>${bundleLabel(bundle)}</span>\n    <strong>${bundle.price} ${currency}</strong>\n  </button>`).join("\n")}\n</div>`;
+  const title = escapeHtml(product.title || "Bundle offer");
+  return `<section class="pas-bundles" aria-label="Bundle offer">
+  <div class="pas-bundles__header">
+    <p class="pas-bundles__eyebrow">Bundle offer</p>
+    <h3>${title}</h3>
+  </div>
+${bundles.map((bundle, index) => `  <button class="pas-bundle${index === 0 ? " is-selected" : ""}" type="button" data-bundle="${escapeHtml(bundleLabel(bundle))}" data-price="${bundle.price}">
+    <span>${escapeHtml(bundleLabel(bundle))}</span>
+    <strong>${escapeHtml(String(bundle.price))} ${escapeHtml(currency)}</strong>
+  </button>`).join("\n")}
+</section>`;
+}
+
+function bundlePreviewCss() {
+  return `.pas-bundles{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#24170f;background:#fffaf6;border:1px solid #f1ded1;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(36,23,15,.08)}
+.pas-bundles__header{margin-bottom:12px}.pas-bundles__eyebrow{margin:0 0 4px;color:#ff690c;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.pas-bundles h3{margin:0;font-size:16px;line-height:1.2}.pas-bundle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;border:1px solid #f1ded1;border-radius:14px;background:white;padding:13px 14px;color:#5b4638;font-weight:800;cursor:pointer}.pas-bundle.is-selected,.pas-bundle:hover{border-color:#ff690c;box-shadow:0 0 0 2px rgba(255,105,12,.12)}.pas-bundle strong{color:#24170f;background:#fffaf6;border:1px solid #f1ded1;border-radius:10px;padding:5px 8px;white-space:nowrap}`;
+}
+
+function bundlePreviewDocument(html: string, css: string[] = []) {
+  return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>html,body{margin:0;background:#fffaf6}body{padding:14px}.pas-preview-root *{box-sizing:border-box}${bundlePreviewCss()}${css.join("\n")}</style></head><body><div class="pas-preview-root">${html}</div></body></html>`;
+}
+
+function bundleExportHtml(html: string, css: string[] = [], assets: BundleWidgetAsset[] = []) {
+  const stylesheets = assets
+    .filter((asset) => asset.type === "stylesheet")
+    .map((asset) => `<link rel="stylesheet" href="${escapeHtml(asset.url)}">`)
+    .join("\n");
+  const scripts = assets
+    .filter((asset) => asset.type === "script")
+    .map((asset) => `<script src="${escapeHtml(asset.url)}" defer></script>`)
+    .join("\n");
+  const inlineCss = css.length ? `<style>\n${css.join("\n")}\n</style>` : "";
+  return [stylesheets, inlineCss, html, scripts].filter(Boolean).join("\n");
+}
+
+function htmlToPlainText(markup: string) {
+  if (typeof window === "undefined") return markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const div = document.createElement("div");
+  div.innerHTML = markup;
+  return div.textContent?.replace(/\s+/g, " ").trim() || "";
+}
+
+function BundleWidgetPreview({ product }: { product: ProductDetails }) {
+  const [copied, setCopied] = useState(false);
+  const fallbackHtml = product.bundlePrices?.length ? bundleEmbed(product, product.bundlePrices) : "";
+  const html = product.bundleWidget?.html || fallbackHtml;
+  const css = product.bundleWidget?.css || [];
+  const assets = product.bundleWidget?.assets || [];
+  const isScraped = Boolean(product.bundleWidget?.html);
+  const exportHtml = html ? bundleExportHtml(html, css, assets) : "";
+  const previewDoc = html ? bundlePreviewDocument(html, css) : "";
+  const previewText = html ? htmlToPlainText(html).slice(0, 180) : "";
+
+  const handleCopy = async () => {
+    if (!exportHtml) return;
+    await navigator.clipboard.writeText(exportHtml);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  };
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
+      <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
+        <div>
+          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Code2 className="w-4 h-4 text-[#ff690c]" />Bundle preview</h3>
+          <p className="text-sm text-[#8a7668] mt-2">{isScraped ? "Real widget HTML scraped from the product page." : "Clean preview rebuilt from detected Shopify variants."}</p>
+        </div>
+        <button onClick={handleCopy} disabled={!html} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#24170f] text-[#fffaf6] text-xs font-black hover:bg-[#3a281d] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+          {copied ? "Copied" : "Copy HTML"}
+        </button>
+      </div>
+
+      {html ? (
+        <>
+          <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-3 flex-1 min-h-0 overflow-hidden">
+            <iframe title="Bundle widget preview" sandbox="" srcDoc={previewDoc} className="w-full h-full min-h-[240px] rounded-lg bg-[#fffaf6] border-0" />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 flex-shrink-0">
+            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485] mb-1">Detected</p>
+              <p className="text-xs font-bold text-[#24170f] truncate">{product.bundleWidget?.source || (isScraped ? "bundle widget" : "variant fallback")}</p>
+            </div>
+            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485] mb-1">Assets</p>
+              <p className="text-xs font-bold text-[#24170f] truncate">{assets.length ? `${assets.length} linked asset${assets.length > 1 ? "s" : ""}` : css.length ? `${css.length} inline CSS block${css.length > 1 ? "s" : ""}` : "No linked assets"}</p>
+            </div>
+          </div>
+          {assets.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2 flex-shrink-0">
+              {assets.slice(0, 4).map((asset) => (
+                <a key={asset.url} href={asset.url} target="_blank" rel="noreferrer" className="max-w-full truncate rounded-full border border-[#f1ded1] bg-white px-2.5 py-1 text-[11px] font-bold text-[#8a7668] hover:text-[#ff690c]">
+                  {asset.type || "asset"}
+                </a>
+              ))}
+            </div>
+          ) : previewText ? (
+            <p className="mt-3 text-xs text-[#8a7668] line-clamp-2 flex-shrink-0">{previewText}</p>
+          ) : null}
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
+          <Code2 className="w-8 h-8 mb-2 opacity-50" />
+          <p className="font-bold text-[#24170f]">No bundle widget detected yet.</p>
+          <p className="text-sm mt-1">Run a new scrape after Railway is healthy to capture widget HTML/CSS/assets.</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ProductDetailsModal({ productId, onClose }: { productId: string, onClose: () => void }) {
@@ -416,11 +550,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                         <div className="py-12 text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed">No variants or bundles detected for this product.</div>
                       )}
                     </div>
-                    <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
-                      <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4 flex items-center gap-2"><Code2 className="w-4 h-4 text-[#ff690c]" />Bundle snippet</h3>
-                      <p className="text-sm text-[#8a7668] mb-4">Safe HTML preview you can mirror below the product form.</p>
-                      <pre className="flex-1 bg-[#24170f] text-[#fffaf6] rounded-xl p-4 text-xs leading-relaxed overflow-hidden whitespace-pre-wrap">{product.bundlePrices?.length ? bundleEmbed(product, product.bundlePrices) : "// No bundle block detected yet"}</pre>
-                    </div>
+                    <BundleWidgetPreview product={product} />
                   </div>
                 )}
 

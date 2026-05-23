@@ -38,6 +38,22 @@ type BundlePrice = {
   options?: Record<string, unknown>;
 };
 
+type BundleWidgetAsset = {
+  type?: string;
+  url: string;
+  source?: string;
+};
+
+type BundleWidget = {
+  html: string;
+  css?: string[];
+  assets?: BundleWidgetAsset[];
+  source?: string;
+  detectedBy?: string;
+  score?: number;
+  text?: string;
+};
+
 type ExtractedProduct = {
   title?: string;
   price?: number;
@@ -51,6 +67,7 @@ type ExtractedProduct = {
   reviewsCount?: number;
   currency?: string;
   bundlePrices?: BundlePrice[];
+  bundleWidget?: BundleWidget;
   brandSignals?: JsonRecord;
   scrapedAt?: string;
 };
@@ -225,6 +242,39 @@ function asBundlePrices(value: unknown): BundlePrice[] | undefined {
   return bundles.length ? bundles : undefined;
 }
 
+function asBundleWidget(value: unknown): BundleWidget | undefined {
+  if (!isRecord(value)) return undefined;
+  const html = asString(value.html);
+  if (!html) return undefined;
+
+  const css = Array.isArray(value.css) ? value.css.map(String).filter(Boolean).slice(0, 6) : undefined;
+  const assets = Array.isArray(value.assets)
+    ? value.assets
+        .map((asset): BundleWidgetAsset | null => {
+          if (!isRecord(asset)) return null;
+          const url = asString(asset.url);
+          if (!url) return null;
+          return {
+            url,
+            type: asString(asset.type),
+            source: asString(asset.source),
+          };
+        })
+        .filter((asset): asset is BundleWidgetAsset => asset !== null)
+        .slice(0, 40)
+    : undefined;
+
+  return {
+    html,
+    css,
+    assets,
+    source: asString(value.source),
+    detectedBy: asString(value.detectedBy) || asString(value.detected_by),
+    score: Number.isFinite(Number(value.score)) ? Number(value.score) : undefined,
+    text: asString(value.text),
+  };
+}
+
 function normalizeScraperData(data: JsonRecord): ExtractedProduct {
   if (!data || typeof data !== "object") return {};
 
@@ -245,6 +295,7 @@ function normalizeScraperData(data: JsonRecord): ExtractedProduct {
     reviewsCount: reviewsCount !== undefined && Number.isFinite(Number(reviewsCount)) ? Number(reviewsCount) : undefined,
     currency: asString(data.currency),
     bundlePrices: asBundlePrices(data.bundlePrices || data.bundle_prices),
+    bundleWidget: asBundleWidget(data.bundleWidget || data.bundle_widget),
     brandSignals: typeof data.brandSignals === "object" && data.brandSignals ? data.brandSignals as JsonRecord : (typeof data.brand_signals === "object" && data.brand_signals ? data.brand_signals as JsonRecord : undefined),
     scrapedAt: asString(data.scrapedAt) || asString(data.scraped_at),
   };
@@ -434,6 +485,7 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
           reviewsCount: extracted.reviewsCount ?? product.reviewsCount,
           currency: extracted.currency || product.currency,
           bundlePrices: toPrismaJson(extracted.bundlePrices || product.bundlePrices),
+          bundleWidget: toPrismaJson(extracted.bundleWidget || product.bundleWidget),
           brandMetrics: toPrismaJson(mergeBrandMetrics(product.brandMetrics, brandMetrics)),
           lastCheckedAt: new Date(),
           lastChangedAt: changed ? new Date() : product.lastChangedAt,

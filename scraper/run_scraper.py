@@ -402,6 +402,183 @@ def extract_brand_signals(page: Any, url: str, fetcher_used: str, raw: str) -> d
     })
 
 
+BUNDLE_WIDGET_KEYWORDS = [
+    "bundle", "bundles", "bundle-builder", "bundlebuilder", "quantity-break", "quantity_break",
+    "volume-discount", "volume discount", "frequently-bought", "frequently bought", "buy more",
+    "bndlr", "rebuy", "bold-bundles", "kaching", "widebundle", "pumper", "vitals",
+    "upsell", "cross-sell", "pack", "packs", "save", "discount",
+]
+
+BUNDLE_WIDGET_SELECTORS = [
+    '[data-bundle]', '[data-bundle-id]', '[data-bundle-price]', '[data-bundles]', '[data-bundle-builder]',
+    '[class*="bundle"]', '[id*="bundle"]', '[class*="bndlr"]', '[id*="bndlr"]',
+    '[class*="rebuy"]', '[id*="rebuy"]', '[class*="bold-bundles"]', '[id*="bold-bundles"]',
+    '[class*="kaching"]', '[id*="kaching"]', '[class*="widebundle"]', '[id*="widebundle"]',
+    '[class*="pumper"]', '[id*="pumper"]', '[class*="quantity-break"]', '[id*="quantity-break"]',
+    '[class*="volume-discount"]', '[id*="volume-discount"]', '[class*="frequently"]', '[id*="frequently"]',
+    '[class*="upsell"]', '[id*="upsell"]', '[class*="cross-sell"]', '[id*="cross-sell"]',
+]
+
+
+def raw_css_values(page: Any, selector: str, limit: int = 50) -> list[str]:
+    try:
+        values = page.css(selector).getall()
+    except Exception:
+        return []
+    return [str(value).strip() for value in values[:limit] if str(value).strip()]
+
+
+def markup_text(markup: str) -> str:
+    text = re.sub(r"<script\b[^>]*>[\s\S]*?</script>", " ", markup, flags=re.I)
+    text = re.sub(r"<style\b[^>]*>[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return clean_text(text) or ""
+
+
+def absolutize_url(value: str, base_url: str) -> str:
+    value = html.unescape(value.strip())
+    if not value or value.startswith(("#", "data:", "mailto:", "tel:", "javascript:")):
+        return value
+    if value.startswith("//"):
+        parsed = urlparse(base_url)
+        return f"{parsed.scheme}:{value}"
+    return urljoin(base_url, value)
+
+
+def absolutize_srcset(value: str, base_url: str) -> str:
+    parts = []
+    for candidate in value.split(","):
+        bits = candidate.strip().split()
+        if not bits:
+            continue
+        bits[0] = absolutize_url(bits[0], base_url)
+        parts.append(" ".join(bits))
+    return ", ".join(parts)
+
+
+def absolutize_markup_urls(markup: str, base_url: str) -> str:
+    def repl(match: re.Match[str]) -> str:
+        attr, quote, value = match.group(1), match.group(2), match.group(3)
+        if attr.lower() == "srcset":
+            value = absolutize_srcset(value, base_url)
+        else:
+            value = absolutize_url(value, base_url)
+        return f'{attr}={quote}{value}{quote}'
+
+    return re.sub(r"\b(src|href|poster|data-src|data-srcset|srcset)=(['\"])(.*?)\2", repl, markup, flags=re.I)
+
+
+def sanitize_bundle_markup(markup: str, base_url: str) -> str:
+    markup = re.sub(r"<script\b[^>]*>[\s\S]*?</script>", "", markup, flags=re.I)
+    markup = re.sub(r"\s+on[a-z]+=(['\"]).*?\1", "", markup, flags=re.I | re.S)
+    markup = absolutize_markup_urls(markup, base_url)
+    return markup.strip()[:35_000]
+
+
+def extract_markup_asset_urls(markup: str, base_url: str) -> list[dict[str, str]]:
+    assets: list[dict[str, str]] = []
+    for _attr, _quote, value in re.findall(r"\b(src|href|poster|data-src)=(['\"])(.*?)\2", markup, flags=re.I):
+        url = absolutize_url(value, base_url)
+        if not url or url.startswith(("#", "data:", "mailto:", "tel:", "javascript:")):
+            continue
+        lowered = url.lower()
+        asset_type = "image" if re.search(r"\.(png|jpe?g|webp|gif|svg|avif)(\?|$)", lowered) else "asset"
+        assets.append({"type": asset_type, "url": url, "source": "widget-html"})
+    return assets
+
+
+def is_bundle_asset(url: str) -> bool:
+    lowered = url.lower()
+    return any(keyword.replace(" ", "-") in lowered or keyword.replace("-", "") in lowered for keyword in BUNDLE_WIDGET_KEYWORDS)
+
+
+def extract_bundle_assets(page: Any, base_url: str, widget_markup: str) -> tuple[list[dict[str, str]], list[str]]:
+    assets: list[dict[str, str]] = []
+    inline_css: list[str] = []
+
+    for href in all_css(page, 'link[rel="stylesheet"]::attr(href)', limit=250):
+        url = absolutize_url(href, base_url)
+        if is_bundle_asset(url):
+            assets.append({"type": "stylesheet", "url": url, "source": "page"})
+
+    for src in all_css(page, "script::attr(src)", limit=250):
+        url = absolutize_url(src, base_url)
+        if is_bundle_asset(url):
+            assets.append({"type": "script", "url": url, "source": "page"})
+
+    assets.extend(extract_markup_asset_urls(widget_markup, base_url))
+
+    total_css = 0
+    for style in raw_css_values(page, "style::text", limit=120):
+        lowered = style.lower()
+        if not any(keyword in lowered for keyword in BUNDLE_WIDGET_KEYWORDS):
+            continue
+        css = style.strip()
+        if not css:
+            continue
+        css = css[:8_000]
+        if total_css + len(css) > 16_000:
+            break
+        inline_css.append(css)
+        total_css += len(css)
+
+    return unique(assets)[:30], unique(inline_css)[:4]
+
+
+def score_bundle_markup(markup: str) -> int:
+    text = markup_text(markup)
+    searchable = f"{markup} {text}".lower()
+    score = 0
+    for keyword in BUNDLE_WIDGET_KEYWORDS:
+        if keyword in searchable:
+            score += 3 if keyword in {"bundle", "bundles", "quantity-break", "volume-discount", "frequently-bought", "bndlr", "rebuy", "bold-bundles", "kaching", "widebundle", "pumper"} else 1
+    score += min(4, len(re.findall(r"(?:€|EUR|USD|\$|£|GBP)\s?\d|\d[\d\s.,]*\s?(?:€|EUR|USD|\$|£|GBP)", text, flags=re.I)))
+    score += min(3, len(re.findall(r"\b(?:save|off|discount|pack|packs|bundle|buy)\b", text, flags=re.I)))
+    score += min(2, markup.lower().count("<button"))
+    score += min(2, markup.lower().count("<input"))
+    if len(markup) > 60_000:
+        score -= 4
+    if len(text) < 8:
+        score -= 3
+    return score
+
+
+def extract_bundle_widget(page: Any, base_url: str) -> dict[str, Any] | None:
+    candidates: list[dict[str, Any]] = []
+    seen = set()
+
+    for selector in BUNDLE_WIDGET_SELECTORS:
+        for markup in raw_css_values(page, selector, limit=18):
+            if not markup or markup in seen:
+                continue
+            seen.add(markup)
+            score = score_bundle_markup(markup)
+            if score < 5:
+                continue
+            candidates.append({"selector": selector, "markup": markup, "score": score, "length": len(markup)})
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda item: (item["score"], -min(item["length"], 45_000)), reverse=True)
+    winner = candidates[0]
+    markup = sanitize_bundle_markup(winner["markup"], base_url)
+    if not markup:
+        return None
+
+    assets, inline_css = extract_bundle_assets(page, base_url, markup)
+    text = markup_text(markup)
+    return compact({
+        "html": markup,
+        "css": inline_css,
+        "assets": assets,
+        "source": winner["selector"],
+        "detectedBy": "bundle-widget-selector",
+        "score": winner["score"],
+        "text": text[:500] if text else None,
+    })
+
+
 def extract_shopify_variants(page: Any) -> list[dict[str, Any]]:
     variants: list[dict[str, Any]] = []
     scripts = all_css(page, 'script[type="application/json"]::text', limit=40)
@@ -498,6 +675,10 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
 
     if not data.get("bundlePrices"):
         data["bundlePrices"] = extract_shopify_variants(page)
+
+    bundle_widget = extract_bundle_widget(page, url)
+    if bundle_widget:
+        data["bundleWidget"] = bundle_widget
 
     data["brandSignals"] = extract_brand_signals(page, url, fetcher_used, raw)
     data["scrapedAt"] = datetime.now(timezone.utc).isoformat()
