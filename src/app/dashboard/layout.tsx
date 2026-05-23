@@ -2,9 +2,10 @@ import Link from "next/link";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { LayoutDashboard, Link as LinkIcon, Settings, LogOut, Activity } from "lucide-react";
+import { LayoutDashboard, Link as LinkIcon, Settings, Activity } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { GuidedTour } from "./GuidedTour";
+import { AccountMenu } from "./AccountMenu";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -15,7 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { onboardingCompleted: true },
+    select: { onboardingCompleted: true, role: true, plan: true, name: true, email: true },
   });
 
   return (
@@ -44,10 +45,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </Link>
         </nav>
         <div className="p-4 border-t border-[#f1ded1]">
-          <Link href="/api/auth/signout" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#6f5a4d] hover:bg-[#fff2e8] transition-colors">
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Log out</span>
-          </Link>
+          <AccountMenu
+            email={user?.email || session.user.email || "user@priceandsee.com"}
+            name={user?.name || session.user.name}
+            role={user?.role}
+            plan={user?.plan}
+          />
         </div>
       </aside>
 
@@ -55,11 +58,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="flex-1 flex flex-col">
         <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-[#f1ded1]">
           <h1 className="text-xl font-semibold text-[#35251c]">Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-[#6f5a4d]">{session.user?.email}</span>
-            <div className="w-8 h-8 rounded-full bg-[#fff2e8] text-[#ff690c] flex items-center justify-center font-bold">
-              {session.user?.email?.charAt(0).toUpperCase()}
-            </div>
+          <div className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-[#ff690c]">
+            {user?.plan === "FREE" ? "Free plan" : `${user?.plan || "FREE"} plan`}
           </div>
         </header>
         <div className="p-8 flex-1 overflow-auto">
