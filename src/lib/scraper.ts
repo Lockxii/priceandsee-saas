@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { effectiveUserLimits, nextMonthlyResetDate } from "@/lib/plans";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(execFile);
 
 type ExtractedProduct = {
   title?: string;
@@ -153,6 +157,35 @@ export function extractProductData(html: string): ExtractedProduct {
   };
 }
 
+async function runPythonScraper(url: string): Promise<ExtractedProduct | null> {
+  try {
+    const { stdout } = await execAsync("python3", ["scraper/run_scraper.py", url], { timeout: 30000 });
+    const result = JSON.parse(stdout);
+    if (result.success && result.data) {
+      return result.data;
+    }
+  } catch (e) {
+    console.error("Python scraper error:", e);
+  }
+  return null;
+}
+
+async function fetchBrandMetrics(url: string) {
+  try {
+    const domain = new URL(url).hostname.replace(/^www\./, '');
+    const res = await fetch(`https://api.brandsearch.co/v1/brands/by-url/${domain}`, {
+      headers: { "X-API-Key": "bsk_PHjR20lqczGonyi46i7OkSSuLbyJq9Scv2IkpfU_liU" },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (e) {
+    console.error("Brandsearch API error:", e);
+  }
+  return null;
+}
+
 async function fetchHtml(url: string) {
   const response = await fetch(url, {
     headers: {
@@ -217,12 +250,18 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
   });
 
   try {
-    const html = await fetchHtml(product.url);
-    const extracted = extractProductData(html);
+    let extracted = await runPythonScraper(product.url);
 
-    if (!extracted.title && extracted.price === undefined && !extracted.stockStatus) {
+    if (!extracted || (!extracted.title && extracted.price === undefined)) {
+      const html = await fetchHtml(product.url);
+      extracted = extractProductData(html);
+    }
+
+    if (!extracted || (!extracted.title && extracted.price === undefined && !extracted.stockStatus)) {
       throw new Error("No product data could be extracted from this page");
     }
+
+    const brandMetrics = await fetchBrandMetrics(product.url);
 
     const changed = hasChanged(
       {
@@ -250,6 +289,7 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
           reviewsCount: extracted.reviewsCount || product.reviewsCount,
           currency: extracted.currency || product.currency,
           bundlePrices: extracted.bundlePrices || product.bundlePrices || undefined,
+          brandMetrics: brandMetrics || product.brandMetrics || undefined,
           lastCheckedAt: new Date(),
           lastChangedAt: changed ? new Date() : product.lastChangedAt,
           lastError: null,

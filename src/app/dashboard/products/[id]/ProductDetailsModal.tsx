@@ -7,6 +7,7 @@ import PriceChart from "./PriceChart";
 export function ProductDetailsModal({ productId, onClose }: { productId: string, onClose: () => void }) {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("Overview");
 
   useEffect(() => {
     fetch(`/api/products/${productId}`)
@@ -53,13 +54,13 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
           </div>
         ) : (
           <>
-            {/* Header Area with Brand Color */}
-            <div className="bg-gradient-to-r from-[#ff690c] to-[#ff8c42] p-8 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-[#e55e0b]">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <Package className="w-64 h-64" />
+            {/* Header Area */}
+            <div className="bg-white p-8 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-[#f1ded1]">
+              <div className="absolute top-0 right-0 p-8 opacity-5">
+                <Package className="w-64 h-64 text-[#ff690c]" />
               </div>
               <div className="relative z-10 flex items-center gap-6">
-                <div className="w-20 h-20 rounded-2xl bg-white shadow-xl flex items-center justify-center p-2">
+                <div className="w-20 h-20 rounded-2xl bg-[#fffaf6] border border-[#f1ded1] flex items-center justify-center p-2">
                   {product.image ? (
                     <img src={product.image} alt={product.title} className="w-full h-full object-contain rounded-xl" />
                   ) : (
@@ -67,8 +68,8 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                   )}
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-white tracking-tight leading-tight max-w-2xl truncate">{product.title || "Product Details"}</h2>
-                  <a href={product.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-white/80 hover:text-white transition-colors text-sm font-medium mt-2 w-max bg-black/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                  <h2 className="text-3xl font-black text-[#24170f] tracking-tight leading-tight max-w-2xl truncate">{product.title || "Product Details"}</h2>
+                  <a href={product.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[#8a7668] hover:text-[#ff690c] transition-colors text-sm font-medium mt-2 w-max bg-[#fffaf6] border border-[#f1ded1] px-3 py-1 rounded-full">
                     <ExternalLink className="w-4 h-4" />
                     Visit Source Website
                   </a>
@@ -77,195 +78,239 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
             </div>
 
             {/* Navigation Tabs */}
-            <div className="bg-[#1a1412] px-8 flex gap-8 border-b border-[#2a221f] flex-shrink-0">
-              {['Overview', 'Variants', 'Competitors', 'Activity'].map((tab, i) => (
-                <button key={tab} className={`py-4 text-sm font-semibold border-b-2 transition-colors ${i === 0 ? 'border-[#ff690c] text-[#ff690c]' : 'border-transparent text-white/50 hover:text-white'}`}>
+            <div className="bg-[#fffaf6] px-8 flex gap-8 border-b border-[#f1ded1] flex-shrink-0">
+              {['Overview', 'Variants', 'Competitors', 'Activity'].map((tab) => (
+                <button 
+                  key={tab} 
+                  onClick={() => setActiveTab(tab)}
+                  className={`py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-[#ff690c] text-[#ff690c]' : 'border-transparent text-[#8a7668] hover:text-[#24170f]'}`}
+                >
                   {tab}
                 </button>
               ))}
             </div>
 
-            <div className="p-8 overflow-auto flex-1 bg-[#1a1412] text-white">
-              <div className="max-w-7xl mx-auto space-y-8">
+            <div className="p-8 overflow-auto flex-1 bg-[#fffaf6] text-[#24170f]">
+              <div className="max-w-7xl mx-auto">
                 
-                {/* Top Metrics Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-[#221a18] p-5 rounded-2xl border border-[#2a221f] shadow-lg flex flex-col justify-between hover:border-[#ff690c]/50 transition-colors">
-                    <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Current Price</p>
-                    <div className="flex items-end gap-2">
-                      <p className="text-4xl font-black text-white">
-                        {product.currentPrice ? `${product.currentPrice}` : "—"}
-                      </p>
-                      <p className="text-xl font-bold text-[#ff690c] mb-1">{product.currency || '€'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-[#221a18] p-5 rounded-2xl border border-[#2a221f] shadow-lg flex flex-col justify-between hover:border-[#ff690c]/50 transition-colors">
-                    <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Stock Status</p>
-                    <div>
-                      {product.stockStatus ? (
-                        <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${product.stockStatus === 'In Stock' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                          <div className={`w-2 h-2 rounded-full ${product.stockStatus === 'In Stock' ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                          {product.stockStatus}
-                        </span>
-                      ) : (
-                        <span className="text-white/30 font-medium">Unknown</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Locked Pro Metric 1 */}
-                  <div className="bg-[#221a18] p-5 rounded-2xl border border-[#2a221f] shadow-lg flex flex-col justify-between relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Lock className="w-5 h-5 text-[#ff690c]" />
-                      <button className="px-3 py-1 bg-[#ff690c] text-white text-xs font-bold rounded hover:bg-[#e55e0b]">Upgrade</button>
-                    </div>
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Est. Monthly Sales</p>
-                      <div className="p-1.5 bg-[#ff690c]/10 rounded-md">
-                        <Lock className="w-3.5 h-3.5 text-[#ff690c]" />
-                      </div>
-                    </div>
-                    <p className="text-3xl font-black text-white/20 blur-[4px]">24,500 €</p>
-                    <p className="text-xs text-white/30 mt-2">Upgrade to unlock</p>
-                  </div>
-
-                  {/* Locked Pro Metric 2 */}
-                  <div className="bg-[#221a18] p-5 rounded-2xl border border-[#2a221f] shadow-lg flex flex-col justify-between relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Lock className="w-5 h-5 text-[#ff690c]" />
-                      <button className="px-3 py-1 bg-[#ff690c] text-white text-xs font-bold rounded hover:bg-[#e55e0b]">Upgrade</button>
-                    </div>
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Competitor Overlap</p>
-                      <div className="p-1.5 bg-[#ff690c]/10 rounded-md">
-                        <Lock className="w-3.5 h-3.5 text-[#ff690c]" />
-                      </div>
-                    </div>
-                    <p className="text-3xl font-black text-white/20 blur-[4px]">14 Stores</p>
-                    <p className="text-xs text-white/30 mt-2">Upgrade to unlock</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left Column: Charts and Details */}
-                  <div className="lg:col-span-2 space-y-6">
-                    {/* Dark Chart */}
-                    <div className="bg-[#221a18] p-6 rounded-2xl border border-[#2a221f] shadow-lg">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <TrendingUp className="w-5 h-5 text-[#ff690c]" />
-                          <h3 className="text-sm font-bold text-white uppercase tracking-wider">Price History</h3>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="flex items-center gap-1.5 text-xs font-medium text-white/50"><div className="w-2 h-2 rounded bg-[#ff690c]"></div> Detected Price</span>
+                {activeTab === 'Overview' && (
+                  <div className="space-y-6">
+                    {/* Top Metrics Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
+                        <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Current Price</p>
+                        <div className="flex items-end gap-2">
+                          <p className="text-4xl font-black text-[#24170f]">
+                            {product.currentPrice ? `${product.currentPrice}` : "—"}
+                          </p>
+                          <p className="text-xl font-bold text-[#ff690c] mb-1">{product.currency || '€'}</p>
                         </div>
                       </div>
                       
-                      <div className="bg-[#1a1412] rounded-xl border border-[#2a221f] p-4">
-                        {product.priceHistory?.length > 0 ? (
-                          <div className="filter invert hue-rotate-180 brightness-150 contrast-125">
-                            <PriceChart data={product.priceHistory} />
-                          </div>
-                        ) : (
-                          <div className="h-[280px] flex flex-col items-center justify-center text-white/30 border border-white/5 border-dashed rounded-lg">
-                            <LineChart className="w-8 h-8 mb-2 opacity-50" />
-                            <span className="font-medium">Waiting for enough data points...</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div className="bg-[#221a18] p-6 rounded-2xl border border-[#2a221f] shadow-lg">
-                      <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-3 mb-4">
-                        <AlignLeft className="w-5 h-5 text-[#ff690c]" />
-                        Description
-                      </h3>
-                      <div className="text-white/60 text-sm leading-relaxed whitespace-pre-wrap p-4 bg-[#1a1412] rounded-xl border border-[#2a221f]">
-                        {product.description || "No description available for this product."}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-6">
-                    {/* Details Card */}
-                    <div className="bg-[#221a18] p-6 rounded-2xl border border-[#2a221f] shadow-lg">
-                      <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Product Info</h3>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center pb-3 border-b border-[#2a221f]">
-                          <span className="text-white/50 text-sm font-medium flex items-center gap-2"><Tag className="w-4 h-4" /> Brand</span>
-                          <span className="font-bold text-white">{product.brand || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between items-center pb-3 border-b border-[#2a221f]">
-                          <span className="text-white/50 text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU/MPN</span>
-                          <span className="font-bold text-white">{product.sku || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/50 text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Rating</span>
-                          {product.rating ? (
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-[#ff690c]">{product.rating}</span>
-                              <span className="text-xs text-white/30">({product.reviewsCount})</span>
-                            </div>
+                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
+                        <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Stock Status</p>
+                        <div>
+                          {product.stockStatus ? (
+                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${product.stockStatus === 'In Stock' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                              <div className={`w-2 h-2 rounded-full ${product.stockStatus === 'In Stock' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                              {product.stockStatus}
+                            </span>
                           ) : (
-                            <span className="text-white/30 text-sm font-medium">No rating</span>
+                            <span className="text-[#a99485] font-medium">Unknown</span>
                           )}
                         </div>
                       </div>
+
+                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider">Est. Monthly Visits</p>
+                        </div>
+                        <p className="text-3xl font-black text-[#24170f]">
+                          {product.brandMetrics?.monthly_visits ? new Intl.NumberFormat('en-US').format(product.brandMetrics.monthly_visits) : "—"}
+                        </p>
+                        <p className="text-xs text-[#a99485] mt-2 truncate">Source: BrandSearch API</p>
+                      </div>
+
+                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider">Niche / Category</p>
+                        </div>
+                        <p className="text-2xl font-black text-[#24170f] truncate">
+                          {product.brandMetrics?.niche || "—"}
+                        </p>
+                        <p className="text-xs text-[#a99485] mt-2 truncate">Targeting: {product.brandMetrics?.target_persona || "Unknown"}</p>
+                      </div>
                     </div>
 
-                    {/* Bundle Prices */}
-                    {product.bundlePrices && product.bundlePrices.length > 0 && (
-                      <div className="bg-[#221a18] p-6 rounded-2xl border border-[#2a221f] shadow-lg">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Variants & Bundles</h3>
-                        <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                          {product.bundlePrices.map((bundle: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-[#1a1412] rounded-lg border border-[#2a221f] hover:border-[#ff690c]/30 transition-colors">
-                              <span className="font-medium text-white/70 text-sm truncate pr-4">{bundle.name}</span>
-                              <span className="font-bold text-white whitespace-nowrap">{bundle.price} {product.currency || '€'}</span>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Left Column: Charts */}
+                      <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                              <TrendingUp className="w-5 h-5 text-[#ff690c]" />
+                              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Price History</h3>
                             </div>
-                          ))}
+                          </div>
+                          
+                          <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-4">
+                            {product.priceHistory?.length > 0 ? (
+                              <PriceChart data={product.priceHistory} />
+                            ) : (
+                              <div className="h-[280px] flex flex-col items-center justify-center text-[#8a7668] border border-[#f1ded1] border-dashed rounded-lg">
+                                <LineChart className="w-8 h-8 mb-2 opacity-50" />
+                                <span className="font-medium">Waiting for enough data points...</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-4">
+                            <AlignLeft className="w-5 h-5 text-[#ff690c]" />
+                            Description
+                          </h3>
+                          <div className="text-[#5b4638] text-sm leading-relaxed whitespace-pre-wrap p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
+                            {product.description || "No description available for this product."}
+                          </div>
                         </div>
                       </div>
-                    )}
 
-                    {/* Scraping Jobs */}
-                    <div className="bg-[#221a18] rounded-2xl border border-[#2a221f] shadow-lg overflow-hidden">
-                      <div className="px-6 py-4 border-b border-[#2a221f]">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Activity Log</h3>
+                      {/* Right Column */}
+                      <div className="space-y-6">
+                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Product Info</h3>
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center pb-3 border-b border-[#f1ded1]">
+                              <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Tag className="w-4 h-4" /> Brand</span>
+                              <span className="font-bold text-[#24170f]">{product.brand || "N/A"}</span>
+                            </div>
+                            <div className="flex justify-between items-center pb-3 border-b border-[#f1ded1]">
+                              <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU/MPN</span>
+                              <span className="font-bold text-[#24170f] truncate max-w-[150px] text-right">{product.sku || "N/A"}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Rating</span>
+                              {product.rating ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-[#ff690c]">{product.rating}</span>
+                                  <span className="text-xs text-[#8a7668]">({product.reviewsCount})</span>
+                                </div>
+                              ) : (
+                                <span className="text-[#a99485] text-sm font-medium">No rating</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-[#ff690c]/5 border border-[#ff690c]/20 p-5 rounded-2xl relative overflow-hidden group shadow-sm">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-[#ff690c] rounded-lg">
+                              <Users className="w-4 h-4 text-white" />
+                            </div>
+                            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Target Audience</h3>
+                          </div>
+                          <p className="text-sm text-[#8a7668] mb-4">Discover the exact audience targeting this product in ads.</p>
+                          <button className="w-full py-2 bg-[#ff690c] text-white text-sm font-bold rounded-lg hover:bg-[#e55e0b] shadow-[0_0_15px_rgba(255,105,12,0.3)] transition-all">
+                            Unlock Analytics
+                          </button>
+                        </div>
                       </div>
-                      <div className="divide-y divide-[#2a221f] max-h-48 overflow-y-auto custom-scrollbar">
-                        {product.scrapingJobs?.map((job: any) => (
-                          <div key={job.id} className="px-6 py-3 flex items-center justify-between bg-[#221a18] hover:bg-[#1a1412] transition-colors">
-                            <p className="text-xs font-medium text-white/50">
-                              {new Date(job.createdAt).toLocaleDateString()} {new Date(job.createdAt).toLocaleTimeString()}
-                            </p>
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${job.status === 'SUCCESS' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                              {job.status}
-                            </span>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'Variants' && (
+                  <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                    <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-6">Variants & Bundles</h3>
+                    {product.bundlePrices && product.bundlePrices.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {product.bundlePrices.map((bundle: any, idx: number) => (
+                          <div key={idx} className="flex items-center justify-between p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
+                            <span className="font-bold text-[#5b4638]">{bundle.name}</span>
+                            <span className="font-black text-[#24170f] bg-white px-3 py-1 rounded border border-[#f1ded1] shadow-sm">{bundle.price} {product.currency || '€'}</span>
                           </div>
                         ))}
                       </div>
-                    </div>
-                    
-                    {/* Locked Audience feature */}
-                    <div className="bg-[#ff690c]/5 border border-[#ff690c]/20 p-5 rounded-2xl relative overflow-hidden group shadow-lg">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-[#ff690c] rounded-lg">
-                          <Users className="w-4 h-4 text-white" />
-                        </div>
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Target Audience</h3>
+                    ) : (
+                      <div className="py-12 text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed">
+                        No variants or bundles detected for this product.
                       </div>
-                      <p className="text-sm text-white/50 mb-4">Discover the exact audience targeting this product in ads.</p>
-                      <button className="w-full py-2 bg-[#ff690c] text-white text-sm font-bold rounded-lg hover:bg-[#e55e0b] shadow-[0_0_15px_rgba(255,105,12,0.3)] transition-all">
-                        Unlock Analytics
-                      </button>
-                    </div>
-
+                    )}
                   </div>
-                </div>
+                )}
+
+                {activeTab === 'Competitors' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                        <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Competitor Stack</h3>
+                        <p className="text-sm text-[#8a7668] mb-4">Technologies used by this brand.</p>
+                        <div className="flex flex-wrap gap-2">
+                          {product.brandMetrics?.technologies ? (
+                            product.brandMetrics.technologies.slice(0, 10).map((tech: string, i: number) => (
+                              <span key={i} className="px-2.5 py-1 bg-[#fffaf6] border border-[#f1ded1] rounded-md text-xs font-semibold text-[#5b4638]">{tech}</span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-[#a99485]">No tech stack data available.</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Lock className="w-5 h-5 text-[#ff690c]" />
+                          <button className="px-4 py-1.5 bg-[#ff690c] text-white text-xs font-bold rounded-lg shadow-sm">Upgrade to Unlock</button>
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Competitor Overlap</h3>
+                            <Lock className="w-4 h-4 text-[#ff690c]" />
+                          </div>
+                          <p className="text-sm text-[#8a7668] mb-4">Other stores selling similar products.</p>
+                        </div>
+                        <p className="text-4xl font-black text-[#24170f]/20 blur-[4px]">14 Stores</p>
+                      </div>
+                      
+                      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Lock className="w-5 h-5 text-[#ff690c]" />
+                          <button className="px-4 py-1.5 bg-[#ff690c] text-white text-xs font-bold rounded-lg shadow-sm">Upgrade to Unlock</button>
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Est. Revenue</h3>
+                            <Lock className="w-4 h-4 text-[#ff690c]" />
+                          </div>
+                          <p className="text-sm text-[#8a7668] mb-4">Monthly estimated revenue of this store.</p>
+                        </div>
+                        <p className="text-4xl font-black text-[#24170f]/20 blur-[4px]">45,000 €</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'Activity' && (
+                  <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                    <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-6">Scraping History</h3>
+                    <div className="space-y-3 max-h-[500px] overflow-auto pr-2 custom-scrollbar">
+                      {product.scrapingJobs?.length > 0 ? product.scrapingJobs.map((job: any) => (
+                        <div key={job.id} className="px-5 py-4 flex items-center justify-between bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
+                          <p className="text-sm font-semibold text-[#5b4638]">
+                            {new Date(job.createdAt).toLocaleDateString()} at {new Date(job.createdAt).toLocaleTimeString()}
+                          </p>
+                          <span className={`inline-flex px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${job.status === 'SUCCESS' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {job.status}
+                          </span>
+                        </div>
+                      )) : (
+                        <div className="py-12 text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed">
+                          No scraping history yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>
