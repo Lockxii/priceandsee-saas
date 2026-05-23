@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { useEffect, useCallback } from "react";
 import { AlertSettingsClient } from "./AlertSettingsClient";
 
 export function SettingsModalRenderer({ user, updateProfileAction }: { user: any, updateProfileAction: any }) {
@@ -10,11 +10,22 @@ export function SettingsModalRenderer({ user, updateProfileAction }: { user: any
   const pathname = usePathname();
   const isOpen = searchParams.get("settings") === "true";
 
-  if (!isOpen) return null;
-
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     router.push(pathname);
-  };
+  }, [router, pathname]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, closeModal]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[90] flex flex-col items-center justify-end">
@@ -38,9 +49,6 @@ export function SettingsModalRenderer({ user, updateProfileAction }: { user: any
       >
         <div className="px-8 py-5 border-b border-[#f1ded1] flex justify-between items-center bg-white sticky top-0 z-10">
           <h2 className="text-xl font-bold text-[#24170f]">Account Settings</h2>
-          <button onClick={closeModal} className="text-[#8a7668] hover:text-[#24170f] transition-colors p-2 bg-[#fffaf6] rounded-full border border-[#f1ded1]">
-            <X className="w-5 h-5" />
-          </button>
         </div>
         
         <div className="p-8 overflow-auto flex-1 bg-[#fffaf6]">
