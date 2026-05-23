@@ -255,7 +255,7 @@ function buildCompetitorSeries(competitors: JsonRecord[]) {
   return competitors.slice(0, 6).map((item, index): CompetitorRevenueSeries | null => {
     const revenue = competitorRevenue(item);
     const data = competitorHistory(item);
-    if (revenue === undefined && data.length < 2) return null;
+    if (data.length < 2) return null;
     const currentRevenue = revenue ?? data[data.length - 1]?.revenue;
     if (currentRevenue === undefined) return null;
     return {
