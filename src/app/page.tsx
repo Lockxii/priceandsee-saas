@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Zap } from "lucide-react";
 import { Hero } from "@/components/landing/Hero";
 import { Stats } from "@/components/landing/Stats";
+import { Testimonials } from "@/components/landing/Testimonials";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Features } from "@/components/landing/Features";
 import { Pricing } from "@/components/landing/Pricing";
@@ -37,6 +38,7 @@ export default function Home() {
       <main className="flex-1 pt-[70px]">
         <Hero />
         <Stats />
+        <Testimonials />
         <div id="how-it-works"><HowItWorks /></div>
         <Features />
         <Pricing />
