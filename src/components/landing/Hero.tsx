@@ -6,7 +6,7 @@ import { ArrowRight, Star, Clock, TrendingUp } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative min-h-[calc(100vh-70px)] pt-20 pb-20 w-full flex flex-col items-center justify-center border-b border-[#ebebeb]/60">
+    <section className="relative pt-32 pb-32 w-full flex flex-col items-center border-b border-[#ebebeb]/60">
       
       {/* Background Grid Lines (Whoscale style) */}
       <div className="absolute inset-0 w-full h-full pointer-events-none z-0 flex justify-center [mask-image:linear-gradient(to_bottom,black_60%,transparent_100%)]">
@@ -99,7 +99,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="flex flex-wrap justify-center items-center gap-6 text-[13px] font-semibold text-[#474747]"
+          className="flex flex-wrap justify-center items-center gap-6 text-[13px] font-semibold text-[#474747] mb-20"
         >
           <div className="flex items-center gap-1.5">
             <Star className="w-4 h-4 text-[#ff690c]" /> Top e-commerçants
@@ -109,6 +109,33 @@ export function Hero() {
           </div>
           <div className="flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4 text-[#ff690c]" /> Stratégies gagnantes
+          </div>
+        </motion.div>
+
+        {/* Video / App Showcase Placeholder */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.6 }}
+          className="w-full max-w-[1000px] relative z-20"
+        >
+          {/* Outer orange frame */}
+          <div className="rounded-[24px] border-[6px] border-[#ff690c] bg-[#1a0b02] p-2 shadow-[0_20px_50px_-15px_rgba(255,105,12,0.5)] overflow-hidden aspect-[16/9] w-full flex items-center justify-center relative">
+            
+            {/* Inner gradient simulating video thumbnail / dashboard */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#ff690c]/20 via-black to-[#ffeed1]/10 opacity-80" />
+            
+            {/* Play button */}
+            <div className="relative w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 hover:scale-110 transition-transform cursor-pointer shadow-2xl">
+              <div className="w-0 h-0 border-t-[12px] border-t-transparent border-l-[22px] border-l-white border-b-[12px] border-b-transparent ml-2" />
+            </div>
+
+            {/* Faux Dashboard UI overlay elements (optional, just for texture) */}
+            <div className="absolute top-6 left-6 right-6 bottom-6 border border-white/5 rounded-[12px] hidden md:flex gap-4 p-4 pointer-events-none">
+              <div className="w-1/3 h-full bg-white/5 rounded-lg border border-white/10" />
+              <div className="w-1/3 h-full bg-white/5 rounded-lg border border-white/10" />
+              <div className="w-1/3 h-full bg-white/5 rounded-lg border border-white/10" />
+            </div>
           </div>
         </motion.div>
       </div>
