@@ -29,6 +29,21 @@ type BrandMetrics = JsonRecord & {
   monthly_revenue?: number;
   monthlyRevenue?: number;
   revenue?: number;
+  min_revenue?: number;
+  max_revenue?: number;
+  rank?: number;
+  bounce_rate?: number;
+  pages_per_visit?: number;
+  visit_duration?: number;
+  product_count?: number;
+  last_meta_active_count?: number;
+  growth_30d?: number;
+  brandsearch_note?: string;
+  competitors?: JsonRecord[];
+  similar_brands?: JsonRecord[];
+  technologies?: unknown[];
+  tech_stack?: unknown[];
+  techStack?: unknown[];
   monthly_visits_history?: BrandMetricPoint[];
   monthlyVisitsHistory?: BrandMetricPoint[];
   visits_history?: BrandMetricPoint[];
@@ -185,6 +200,11 @@ function formatMoney(value?: number | null, currency = "USD") {
   }
 }
 
+function formatMoneyRange(min?: number, max?: number, currency = "USD") {
+  if (min !== undefined && max !== undefined) return `${formatMoney(min, currency)}–${formatMoney(max, currency)}`;
+  return formatMoney(max ?? min, currency);
+}
+
 function metricText(metrics: BrandMetrics | null | undefined, keys: string[], fallback = "—") {
   if (!metrics) return fallback;
   for (const key of keys) {
@@ -203,8 +223,43 @@ function getMonthlyVisits(metrics?: BrandMetrics | null) {
 
 function getRevenueMetric(metrics?: BrandMetrics | null) {
   if (!metrics) return undefined;
-  return readNumberFromKeys(metrics, ["monthly_revenue", "monthlyRevenue", "revenue", "estimated_monthly_revenue"]) ??
+  const minRevenue = readNumberFromKeys(metrics, ["min_revenue", "minRevenue"]);
+  const maxRevenue = readNumberFromKeys(metrics, ["max_revenue", "maxRevenue"]);
+  if (minRevenue !== undefined && maxRevenue !== undefined) return (minRevenue + maxRevenue) / 2;
+  return maxRevenue ?? minRevenue ??
+    readNumberFromKeys(metrics, ["monthly_revenue", "monthlyRevenue", "revenue", "estimated_monthly_revenue"]) ??
     findNestedNumber(metrics, ["monthly_revenue", "monthlyRevenue", "estimated_monthly_revenue", "revenue"]);
+}
+
+function getRevenueRange(metrics?: BrandMetrics | null) {
+  if (!metrics) return { min: undefined as number | undefined, max: undefined as number | undefined };
+  return {
+    min: readNumberFromKeys(metrics, ["min_revenue", "minRevenue"]),
+    max: readNumberFromKeys(metrics, ["max_revenue", "maxRevenue"]),
+  };
+}
+
+function normalizeVisitHistory(metrics?: BrandMetrics | null) {
+  if (!metrics) return undefined;
+  const directCandidates = [metrics.monthly_visits_history, metrics.monthlyVisitsHistory, metrics.visits_history, metrics.traffic_history, metrics.history];
+  const recursiveCandidates = nestedArrays(metrics, (key) =>
+    key.includes("history") && (key.includes("visit") || key.includes("traffic") || key.includes("monthly")) ||
+    key.includes("monthlyvisit") ||
+    key.includes("traffichistory") ||
+    key.includes("visitshistory")
+  );
+  const candidates = [...directCandidates, ...recursiveCandidates];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const points = candidate
+      .map(normalizeVisitPoint)
+      .filter((item): item is { month: string; visits: number } => item !== null)
+      .slice(-12);
+    if (points.length > 1) return points;
+  }
+
+  return undefined;
 }
 
 function normalizeVisitPoint(item: unknown, index: number) {
@@ -225,29 +280,6 @@ function normalizeVisitPoint(item: unknown, index: number) {
     month: asString(item.month) || asString(item.date) || asString(item.period) || asString(item.label) || asString(item.name) || MONTH_NAMES[index % 12],
     visits,
   };
-}
-
-function normalizeVisitHistory(metrics?: BrandMetrics | null, latestVisits?: number) {
-  if (!metrics) return undefined;
-  const directCandidates = [metrics.monthly_visits_history, metrics.monthlyVisitsHistory, metrics.visits_history, metrics.traffic_history, metrics.history];
-  const recursiveCandidates = nestedArrays(metrics, (key) =>
-    key.includes("history") && (key.includes("visit") || key.includes("traffic") || key.includes("monthly")) ||
-    key.includes("monthlyvisit") ||
-    key.includes("traffichistory") ||
-    key.includes("visitshistory")
-  );
-  const candidates = [...directCandidates, ...recursiveCandidates];
-
-  for (const candidate of candidates) {
-    if (!Array.isArray(candidate)) continue;
-    const points = candidate
-      .map(normalizeVisitPoint)
-      .filter((item): item is { month: string; visits: number } => item !== null)
-      .slice(-12);
-    if (points.length > 1) return points;
-  }
-
-  return latestVisits !== undefined ? [{ month: "Latest", visits: latestVisits }] : undefined;
 }
 
 function normalizeTrafficCountries(metrics?: BrandMetrics | null) {
@@ -635,18 +667,17 @@ function productMediaItems(product: ProductDetails): ProductMedia[] {
     });
 }
 
-function ProductPhotoCard({ product }: { product: ProductDetails }) {
+function ProductPhotoCard({ product, onOpenAssets }: { product: ProductDetails; onOpenAssets?: () => void }) {
   const media = productMediaItems(product);
-  const primary = media[0];
   const visibleThumbs = media.slice(0, 4);
   const extraCount = Math.max(0, media.length - visibleThumbs.length);
   return (
     <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.85] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[190px] max-h-[224px]">
       <div className="flex items-center justify-between gap-3 mb-3 flex-shrink-0">
         <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3"><Images className="w-5 h-5 text-[#ff690c]" />Product photo</h3>
-        {media.length > 1 && <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-2.5 py-1">{media.length} imgs</span>}
+        {media.length > 0 && <button type="button" onClick={onOpenAssets} className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-2.5 py-1 hover:bg-white transition-colors">Open assets</button>}
       </div>
-      <div className="flex-1 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] overflow-hidden grid grid-cols-4 gap-2 p-2">
+      <button type="button" onClick={onOpenAssets} className="flex-1 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] overflow-hidden grid grid-cols-4 gap-2 p-2 text-left disabled:cursor-default" disabled={!media.length}>
         {visibleThumbs.length ? visibleThumbs.map((item, index) => (
           <div key={`${item.url}-${index}`} className="relative rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
             <img src={previewAssetUrl(item.url, `${product.title || "product"}-overview-${index + 1}`)} alt={item.alt || product.title || `Product ${index + 1}`} className="h-full w-full object-cover" />
@@ -658,7 +689,7 @@ function ProductPhotoCard({ product }: { product: ProductDetails }) {
             <p className="text-sm font-bold text-[#24170f]">No product image</p>
           </div>
         )}
-      </div>
+      </button>
     </div>
   );
 }
@@ -784,8 +815,14 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   );
 }
 
-function TrafficSnapshotPanel({ visits, revenue, countries, currency }: { visits?: number; revenue?: number; countries: TrafficCountry[]; currency: string }) {
-  const hasSignals = visits !== undefined || revenue !== undefined || countries.length > 0;
+function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, currency, metrics }: { visits?: number; revenue?: number; revenueRange: { min?: number; max?: number }; countries: TrafficCountry[]; currency: string; metrics?: BrandMetrics | null }) {
+  const rank = metrics ? readNumberFromKeys(metrics, ["rank"]) : undefined;
+  const bounceRate = metrics ? readNumberFromKeys(metrics, ["bounce_rate", "bounceRate"]) : undefined;
+  const pagesPerVisit = metrics ? readNumberFromKeys(metrics, ["pages_per_visit", "pagesPerVisit"]) : undefined;
+  const visitDuration = metrics ? readNumberFromKeys(metrics, ["visit_duration", "visitDuration"]) : undefined;
+  const growth = metrics ? readNumberFromKeys(metrics, ["growth_30d", "growth30d"]) : undefined;
+  const productCount = metrics ? readNumberFromKeys(metrics, ["product_count", "productCount"]) : undefined;
+  const hasSignals = visits !== undefined || revenue !== undefined || countries.length > 0 || rank !== undefined || productCount !== undefined;
 
   if (!hasSignals) {
     return (
@@ -809,7 +846,7 @@ function TrafficSnapshotPanel({ visits, revenue, countries, currency }: { visits
       <div className="flex items-start justify-between gap-3 flex-shrink-0">
         <div>
           <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
-          <p className="mt-1 text-sm text-[#8a7668]">Latest BrandSearch signals, no monthly history yet.</p>
+          <p className="mt-1 text-sm text-[#8a7668]">Latest documented BrandSearch snapshot. Their API does not expose visit history.</p>
         </div>
         <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
       </div>
@@ -817,36 +854,49 @@ function TrafficSnapshotPanel({ visits, revenue, countries, currency }: { visits
       <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
         <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
           <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Monthly visits</p>
-          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatCompact(visits)}</p>
-          <p className="mt-2 text-xs font-medium text-[#8a7668]">Latest BrandSearch signal.</p>
+          <p className="mt-3 text-4xl font-black leading-none text-[#24170f]">{formatCompact(visits)}</p>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-[#8a7668]">
+            <span className="rounded-lg border border-[#f1ded1] bg-white px-2 py-1">Rank {rank ? `#${formatCompact(rank)}` : "—"}</span>
+            <span className="rounded-lg border border-[#f1ded1] bg-white px-2 py-1">30d {growth !== undefined ? `${growth > 0 ? "+" : ""}${growth.toFixed(1)}%` : "—"}</span>
+          </div>
         </div>
         <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Revenue</p>
-          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatMoney(revenue, currency)}</p>
-          <p className="mt-2 text-xs font-medium text-[#8a7668]">Only displayed when returned by BrandSearch.</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Revenue range</p>
+          <p className="mt-3 text-3xl font-black leading-tight text-[#24170f]">{formatMoneyRange(revenueRange.min, revenueRange.max, currency)}</p>
+          <p className="mt-2 text-xs font-medium text-[#8a7668]">BrandSearch min/max revenue estimate.</p>
         </div>
         <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
-          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Top countries</p>
-          {countries.length ? (
-            <div className="mt-3 space-y-2">
-              {countries.slice(0, 4).map((country) => (
-                <div key={`${country.label}-${country.share}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#f1ded1] bg-white px-3 py-2">
-                  <span className="min-w-0 truncate text-sm font-bold text-[#5b4638]"><span className="mr-2">{country.flag || "🌐"}</span>{country.label}</span>
-                  <span className="text-sm font-black text-[#ff690c]">{Number(country.share).toFixed(country.share % 1 ? 1 : 0)}%</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-[#8a7668]">No country split returned.</p>
-          )}
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Engagement</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Bounce</p><p className="font-black text-[#24170f]">{bounceRate !== undefined ? `${(bounceRate <= 1 ? bounceRate * 100 : bounceRate).toFixed(0)}%` : "—"}</p></div>
+            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Pages</p><p className="font-black text-[#24170f]">{pagesPerVisit !== undefined ? pagesPerVisit.toFixed(1) : "—"}</p></div>
+            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Duration</p><p className="font-black text-[#24170f]">{visitDuration !== undefined ? `${Math.round(visitDuration)}s` : "—"}</p></div>
+            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Products</p><p className="font-black text-[#24170f]">{formatCompact(productCount)}</p></div>
+          </div>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-shrink-0">
+        <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Top countries</p>
+        {countries.length ? (
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
+            {countries.slice(0, 4).map((country) => (
+              <div key={`${country.label}-${country.share}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#f1ded1] bg-white px-3 py-2">
+                <span className="min-w-0 truncate text-sm font-bold text-[#5b4638]"><span className="mr-2">{country.flag || "🌐"}</span>{country.label}</span>
+                <span className="text-sm font-black text-[#ff690c]">{Number(country.share).toFixed(country.share % 1 ? 1 : 0)}%</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[#8a7668]">No country split returned by the documented BrandSearch brand endpoint.</p>
+        )}
       </div>
     </div>
   );
 }
 
-function CompetitorSnapshotPanel({ competitors, technologies, revenue, visits, currency }: { competitors: JsonRecord[]; technologies: string[]; revenue?: number; visits?: number; currency: string }) {
-  const hasSignals = competitors.length > 0 || technologies.length > 0 || revenue !== undefined || visits !== undefined;
+function CompetitorSnapshotPanel({ competitors, technologies, revenue, revenueRange, visits, currency }: { competitors: JsonRecord[]; technologies: string[]; revenue?: number; revenueRange: { min?: number; max?: number }; visits?: number; currency: string }) {
+  const hasSignals = competitors.length > 0 || technologies.length > 0 || revenue !== undefined || visits !== undefined || revenueRange.min !== undefined || revenueRange.max !== undefined;
 
   if (!hasSignals) {
     return (
@@ -870,7 +920,7 @@ function CompetitorSnapshotPanel({ competitors, technologies, revenue, visits, c
       <div className="flex items-start justify-between gap-3 flex-shrink-0">
         <div>
           <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><Users className="w-4 h-4 text-[#ff690c]" />Competitor snapshot</h3>
-          <p className="mt-1 text-sm text-[#8a7668]">Latest BrandSearch signals, no competitor revenue history yet.</p>
+          <p className="mt-1 text-sm text-[#8a7668]">Similar shops found through documented BrandSearch brand filters.</p>
         </div>
         <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
       </div>
@@ -883,8 +933,8 @@ function CompetitorSnapshotPanel({ competitors, technologies, revenue, visits, c
         </div>
         <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
           <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Revenue</p>
-          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatMoney(revenue, currency)}</p>
-          <p className="mt-2 text-xs font-medium text-[#8a7668]">Only if returned.</p>
+          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatMoneyRange(revenueRange.min, revenueRange.max, currency)}</p>
+          <p className="mt-2 text-xs font-medium text-[#8a7668]">BrandSearch min/max estimate.</p>
         </div>
         <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
           <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Visits</p>
@@ -1019,8 +1069,9 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
     const competitorSeries = buildCompetitorSeries(competitors);
 
     return {
-      visitHistory: normalizeVisitHistory(metrics, visits),
+      visitHistory: normalizeVisitHistory(metrics),
       visitCountries: normalizeTrafficCountries(metrics),
+      revenueRange: getRevenueRange(metrics),
       technologies: normalizeTechnologies(metrics),
       competitors,
       competitorSeries,
@@ -1133,14 +1184,16 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                           <TrafficSnapshotPanel
                             visits={derived.visits}
                             revenue={derived.revenue}
+                            revenueRange={derived.revenueRange}
                             countries={derived.visitCountries}
                             currency={product.currency || "USD"}
+                            metrics={product.brandMetrics}
                           />
                         )}
                       </div>
 
                       <div className="lg:col-span-1 h-full flex flex-col gap-3 sm:gap-4 overflow-hidden">
-                        <ProductPhotoCard product={product} />
+                        <ProductPhotoCard product={product} onOpenAssets={() => setActiveTab("Assets")} />
                         <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.65] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[128px] max-h-[166px]">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-3 flex-shrink-0"><AlignLeft className="w-5 h-5 text-[#ff690c]" />Description</h3>
                           <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[3]">{product.description || "No description available for this product."}</p>
@@ -1195,7 +1248,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><DollarSign className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Revenue</p><p className="text-xl font-black text-[#24170f]">{formatMoney(derived.revenue, product.currency || "USD")}</p></div>
+                          <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><DollarSign className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Revenue</p><p className="text-xl font-black text-[#24170f]">{formatMoneyRange(derived.revenueRange.min, derived.revenueRange.max, product.currency || "USD")}</p></div>
                           <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><ActivityIcon className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Visits</p><p className="text-xl font-black text-[#24170f]">{formatCompact(derived.visits)}</p></div>
                         </div>
                       </div>
@@ -1205,6 +1258,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                       competitors={derived.competitors}
                       technologies={derived.technologies}
                       revenue={derived.revenue}
+                      revenueRange={derived.revenueRange}
                       visits={derived.visits}
                       currency={product.currency || "USD"}
                     />

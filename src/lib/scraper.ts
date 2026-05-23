@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { effectiveUserLimits, nextMonthlyResetDate } from "@/lib/plans";
+import { fetchBrandSearchMetricsForUrl, mergeBrandSearchMetrics } from "@/lib/brandsearch";
 import { execFile } from "child_process";
 import { promisify } from "util";
 
@@ -496,148 +497,8 @@ async function runPythonScraper(url: string): Promise<ExtractedProduct | null> {
   return null;
 }
 
-function mergeDeepObjects(...values: unknown[]): JsonRecord | null {
-  const result: JsonRecord = {};
-  let hasValue = false;
-  for (const value of values) {
-    if (!isRecord(value)) continue;
-    hasValue = true;
-    for (const [key, incoming] of Object.entries(value)) {
-      const existing = result[key];
-      result[key] = isRecord(existing) && isRecord(incoming)
-        ? (mergeDeepObjects(existing, incoming) as JsonRecord)
-        : incoming;
-    }
-  }
-  return hasValue ? result : null;
-}
-
-async function fetchBrandJson(url: string, apiKey: string) {
-  const res = await fetch(url, {
-    headers: { "X-API-Key": apiKey, Authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) return null;
-  return await res.json().catch(() => null);
-}
-
-function asNumberValue(value: unknown) {
-  const number = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(number) ? number : undefined;
-}
-
-function firstStringValue(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  }
-  return undefined;
-}
-
-function historyArrayFromPayload(payload: unknown): unknown[] | undefined {
-  if (Array.isArray(payload)) return payload;
-  if (!isRecord(payload)) return undefined;
-  const candidates = [
-    payload.monthly_visits_history,
-    payload.monthlyVisitsHistory,
-    payload.visits_history,
-    payload.visitsHistory,
-    payload.traffic_history,
-    payload.trafficHistory,
-    payload.history,
-    payload.data,
-    payload.results,
-    payload.items,
-  ];
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate;
-    if (isRecord(candidate)) {
-      const nested = historyArrayFromPayload(candidate);
-      if (nested) return nested;
-    }
-  }
-  return undefined;
-}
-
-function normalizeBrandHistoryPayload(payload: unknown): JsonRecord | null {
-  const raw = historyArrayFromPayload(payload);
-  if (!raw?.length) return null;
-  const monthlyVisitsHistory = raw
-    .map((item, index) => {
-      if (typeof item === "number") return { month: String(index + 1), visits: item };
-      if (Array.isArray(item)) {
-        const visits = item.map(asNumberValue).find((value) => value !== undefined);
-        if (visits === undefined) return null;
-        return { month: firstStringValue(...item) || String(index + 1), visits };
-      }
-      if (!isRecord(item)) return null;
-      const visits = asNumberValue(item.visits) ??
-        asNumberValue(item.monthly_visits) ??
-        asNumberValue(item.monthlyVisits) ??
-        asNumberValue(item.traffic) ??
-        asNumberValue(item.value) ??
-        asNumberValue(item.count);
-      if (visits === undefined) return null;
-      return {
-        month: firstStringValue(item.month, item.date, item.period, item.label, item.name) || String(index + 1),
-        visits,
-      };
-    })
-    .filter((item): item is { month: string; visits: number } => item !== null);
-
-  return monthlyVisitsHistory.length ? { monthly_visits_history: monthlyVisitsHistory } : null;
-}
-
-function historyPointCount(history: JsonRecord | null) {
-  const points = history?.monthly_visits_history;
-  return Array.isArray(points) ? points.length : 0;
-}
-
-async function fetchBrandHistory(urls: string[], apiKey: string) {
-  const histories = await Promise.all(
-    urls.map(async (url) => normalizeBrandHistoryPayload(await fetchBrandJson(url, apiKey)))
-  );
-  return histories
-    .filter((history): history is NonNullable<typeof history> => Boolean(history))
-    .sort((a, b) => historyPointCount(b) - historyPointCount(a))[0] || null;
-}
-
 async function fetchBrandMetrics(url: string, scrapedSignals?: JsonRecord) {
-  const apiKey = process.env.BRANDSEARCH_API_KEY;
-  if (!apiKey) return scrapedSignals || null;
-
-  try {
-    const domain = new URL(url).hostname.replace(/^www\./, "");
-    const encoded = encodeURIComponent(domain);
-    const baseUrls = [
-      `https://api.brandsearch.co/v1/brands/by-url/${encoded}`,
-      `https://api.brandsearch.co/v1/brands/by-domain/${encoded}`,
-      `https://api.brandsearch.co/v1/brands/${encoded}`,
-    ];
-
-    const primary = await fetchBrandJson(baseUrls[0], apiKey);
-    const byUrlBase = `https://api.brandsearch.co/v1/brands/by-url/${encoded}`;
-    const history = await fetchBrandHistory([
-      `${byUrlBase}/history`,
-      `${byUrlBase}/traffic/history`,
-      `${byUrlBase}/traffic-history`,
-      `${byUrlBase}/visits-history`,
-      `${byUrlBase}/visit-history`,
-      `${byUrlBase}/metrics/history`,
-      `${byUrlBase}/historical`,
-    ], apiKey);
-    const extras = await Promise.all([
-      fetchBrandJson(`${byUrlBase}/traffic`, apiKey),
-      fetchBrandJson(`${byUrlBase}/competitors`, apiKey),
-      fetchBrandJson(`https://api.brandsearch.co/v1/traffic/${encoded}`, apiKey),
-    ]);
-
-    const fallbackPrimary = primary || await fetchBrandJson(baseUrls[1], apiKey) || await fetchBrandJson(baseUrls[2], apiKey);
-    return mergeDeepObjects(scrapedSignals, fallbackPrimary, history, ...extras) || scrapedSignals || null;
-  } catch (e) {
-    console.error("Brandsearch API error:", e);
-  }
-  return scrapedSignals || null;
+  return fetchBrandSearchMetricsForUrl(url, undefined, scrapedSignals);
 }
 
 async function fetchHtml(url: string) {
@@ -676,13 +537,7 @@ function isRecord(value: unknown): value is JsonRecord {
 }
 
 function mergeBrandMetrics(existing: unknown, incoming: unknown) {
-  if (!existing && !incoming) return undefined;
-  if (!existing) return incoming;
-  if (!incoming) return existing;
-  if (isRecord(existing) && isRecord(incoming)) {
-    return { ...existing, ...incoming };
-  }
-  return incoming || existing;
+  return mergeBrandSearchMetrics(existing, incoming) || undefined;
 }
 
 function hasChanged(before: ExtractedProduct, after: ExtractedProduct) {
