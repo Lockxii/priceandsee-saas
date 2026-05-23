@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { LayoutDashboard, Link as LinkIcon, Settings, Activity } from "lucide-react";
+import { LayoutDashboard, Link as LinkIcon, Settings, Activity, Zap } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { GuidedTour } from "./GuidedTour";
 import { AccountMenu } from "./AccountMenu";
@@ -24,7 +24,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Sidebar */}
       <aside className="w-[280px] bg-white border-r border-[#f1ded1] flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-[#f1ded1]">
-          <Link href="/" className="font-bold text-xl text-[#ff690c]">PriceAndSee</Link>
+          <Link href="/" className="font-bold text-xl text-black flex items-center gap-2">
+            <div className="w-8 h-8 rounded-[8px] bg-[#ff690c] flex items-center justify-center text-white shadow-[0_2px_8px_rgba(255,105,12,0.3)]">
+              <Zap className="w-[18px] h-[18px] fill-white stroke-none" />
+            </div>
+            PriceAndSee
+          </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1">
           <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
