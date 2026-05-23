@@ -5,6 +5,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Features } from "@/components/landing/Features";
 import { Pricing } from "@/components/landing/Pricing";
 import { Faq } from "@/components/landing/Faq";
+import { Cta } from "@/components/landing/Cta";
 
 export default function Home() {
   return (
@@ -38,6 +39,7 @@ export default function Home() {
         <Features />
         <Pricing />
         <Faq />
+        <Cta />
       </main>
 
       <footer className="bg-white border-t border-[#ebebeb] py-16 px-6">
