@@ -46,18 +46,21 @@ export function Hero() {
           className="text-[40px] sm:text-[48px] md:text-[50px] lg:text-[56px] font-[800] tracking-tight leading-[1.05] mb-8 relative z-10"
         >
           <span className="text-black relative inline-block md:whitespace-nowrap pr-2">
-            Trouvez <span className="animate-subtle-orange-shine">les prix</span>, stocks &amp; promotions
-            
-            {/* Badge floating overlapping the end of the text */}
-            <motion.span 
-              initial={{ opacity: 0, rotate: -15, scale: 0.8 }}
-              animate={{ opacity: 1, rotate: -3, scale: 1 }}
-              transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
-              className="absolute -bottom-3 right-[18px] md:-bottom-5 md:right-[10px] inline-flex items-center justify-center bg-gradient-to-br from-[#ff690c] to-[#e55e0b] text-white px-3 py-1 md:px-4 md:py-1.5 rounded-[8px] text-[10px] md:text-[13px] font-bold tracking-widest uppercase shadow-[0_4px_14px_rgba(255,105,12,0.4)] border border-white/20 pointer-events-none select-none z-20"
-              style={{ rotate: '-1deg' }}
-            >
-              &amp; EN TEMPS-RÉEL
-            </motion.span>
+            Trouvez {" "}
+            <span className="relative inline-block">
+              <span className="animate-subtle-orange-shine">les prix</span>
+              {/* Badge floating like the reference: attached to the highlighted words */}
+              <motion.span 
+                initial={{ opacity: 0, rotate: -12, scale: 0.85 }}
+                animate={{ opacity: 1, rotate: -2, scale: 1 }}
+                transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
+                className="absolute -bottom-4 left-1/2 -translate-x-1/2 md:-bottom-5 inline-flex items-center justify-center bg-gradient-to-br from-[#ff690c] to-[#e55e0b] text-white px-3 py-1 md:px-4 md:py-1.5 rounded-[8px] text-[10px] md:text-[13px] font-bold tracking-widest uppercase shadow-[0_4px_14px_rgba(255,105,12,0.4)] border border-white/20 pointer-events-none select-none z-20 whitespace-nowrap"
+                style={{ rotate: '-2deg' }}
+              >
+                &amp; EN TEMPS-RÉEL
+              </motion.span>
+            </span>
+            , stocks &amp; promotions
           </span>
           <br className="hidden md:block"/>
           
