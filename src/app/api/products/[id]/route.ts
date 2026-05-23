@@ -169,23 +169,92 @@ async function fetchBrandJson(url: string, apiKey: string) {
   return await res.json().catch(() => null);
 }
 
+function asNumberValue(value: unknown) {
+  const number = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function firstStringValue(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return undefined;
+}
+
+function historyArrayFromPayload(payload: unknown): unknown[] | undefined {
+  if (Array.isArray(payload)) return payload;
+  if (!isRecord(payload)) return undefined;
+  const candidates = [
+    payload.monthly_visits_history,
+    payload.monthlyVisitsHistory,
+    payload.visits_history,
+    payload.visitsHistory,
+    payload.traffic_history,
+    payload.trafficHistory,
+    payload.history,
+    payload.data,
+    payload.results,
+    payload.items,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+    if (isRecord(candidate)) {
+      const nested = historyArrayFromPayload(candidate);
+      if (nested) return nested;
+    }
+  }
+  return undefined;
+}
+
+function normalizeBrandHistoryPayload(payload: unknown) {
+  const raw = historyArrayFromPayload(payload);
+  if (!raw?.length) return null;
+  const monthlyVisitsHistory = raw
+    .map((item, index) => {
+      if (typeof item === "number") return { month: String(index + 1), visits: item };
+      if (Array.isArray(item)) {
+        const visits = item.map(asNumberValue).find((value) => value !== undefined);
+        if (visits === undefined) return null;
+        return { month: firstStringValue(...item) || String(index + 1), visits };
+      }
+      if (!isRecord(item)) return null;
+      const visits = asNumberValue(item.visits) ??
+        asNumberValue(item.monthly_visits) ??
+        asNumberValue(item.monthlyVisits) ??
+        asNumberValue(item.traffic) ??
+        asNumberValue(item.value) ??
+        asNumberValue(item.count);
+      if (visits === undefined) return null;
+      return {
+        month: firstStringValue(item.month, item.date, item.period, item.label, item.name) || String(index + 1),
+        visits,
+      };
+    })
+    .filter((item): item is { month: string; visits: number } => item !== null);
+
+  return monthlyVisitsHistory.length ? { monthly_visits_history: monthlyVisitsHistory } : null;
+}
+
+async function fetchBrandHistory(url: string, apiKey: string) {
+  const payload = await fetchBrandJson(url, apiKey);
+  return normalizeBrandHistoryPayload(payload);
+}
+
 async function fetchFreshBrandMetrics(url: string, existing: unknown) {
   const apiKey = process.env.BRANDSEARCH_API_KEY;
   if (!apiKey) return isRecord(existing) ? existing : null;
   try {
     const domain = new URL(url).hostname.replace(/^www\./, "");
     const encoded = encodeURIComponent(domain);
+    const history = await fetchBrandHistory(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/history`, apiKey);
     const payloads = await Promise.all([
       fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}`, apiKey),
       fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/traffic`, apiKey),
-      fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/history`, apiKey),
       fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/competitors`, apiKey),
       fetchBrandJson(`https://api.brandsearch.co/v1/traffic/${encoded}`, apiKey),
-      fetchBrandJson(`https://api.brandsearch.co/v1/brands/${encoded}/traffic`, apiKey),
-      fetchBrandJson(`https://api.brandsearch.co/v1/brands/${encoded}/history`, apiKey),
-      fetchBrandJson(`https://api.brandsearch.co/v1/brands/${encoded}/competitors`, apiKey),
     ]);
-    return mergeJsonObjects(existing, ...payloads) || (isRecord(existing) ? existing : null);
+    return mergeJsonObjects(existing, ...payloads, history) || (isRecord(existing) ? existing : null);
   } catch {
     return isRecord(existing) ? existing : null;
   }
