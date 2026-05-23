@@ -103,6 +103,68 @@ export default function TarifsPage() {
           </div>
         </section>
       </main>
+
+      {/* Massive Brand Wordmark Section */}
+      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-16 relative select-none pointer-events-none">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 1500 190"
+          className="relative z-0 w-[124vw] max-w-none h-auto -mb-2"
+        >
+          <defs>
+            <filter id="pricing-wordmark-outer-line">
+              <feMorphology in="SourceGraphic" operator="dilate" radius="1.15" result="expanded" />
+            </filter>
+          </defs>
+
+          <text
+            x="50%"
+            y="70%"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#ff690c"
+            fillOpacity="0.22"
+            filter="url(#pricing-wordmark-outer-line)"
+            fontSize="178"
+            fontWeight="900"
+            letterSpacing="-9"
+            fontFamily="var(--font-montserrat), sans-serif"
+          >
+            PRICEANDSEE
+          </text>
+
+          <text
+            x="50%"
+            y="70%"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="white"
+            fontSize="178"
+            fontWeight="900"
+            letterSpacing="-9"
+            fontFamily="var(--font-montserrat), sans-serif"
+          >
+            PRICEANDSEE
+          </text>
+        </svg>
+      </div>
+
+      <footer className="bg-white border-t border-[#ebebeb] py-16 px-6 relative z-20">
+        <div className="max-w-[1180px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="font-bold text-[20px] text-black flex items-center gap-2">
+            <div className="w-7 h-7 rounded-[7px] bg-[#ff690c] flex items-center justify-center text-white">
+              <Zap className="w-3 h-3 fill-current" />
+            </div>
+            PriceAndSee
+          </div>
+          <div className="flex gap-6 text-[14px] text-[#888] font-medium">
+            <Link href="#" className="hover:text-black transition-colors">Mentions légales</Link>
+            <Link href="#" className="hover:text-black transition-colors">Confidentialité</Link>
+            <Link href="#" className="hover:text-black transition-colors">Contact</Link>
+          </div>
+          <p className="text-[14px] text-[#888] font-medium">&copy; {new Date().getFullYear()} PriceAndSee. Tous droits réservés.</p>
+        </div>
+      </footer>
     </div>
   );
 }
