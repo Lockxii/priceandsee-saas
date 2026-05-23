@@ -14,7 +14,7 @@ export function Hero() {
         <div className="absolute top-[80px] w-full h-[1px] bg-gradient-to-r from-transparent via-[#ff690c]/30 to-transparent" />
         
         {/* Center column container for vertical lines */}
-        <div className="relative w-full max-w-[900px] h-full border-x border-[#ff690c]/20" />
+        <div className="relative w-full max-w-[1180px] h-full border-x border-[#ff690c]/20" />
       </div>
 
       {/* Background Animated Blurs */}
