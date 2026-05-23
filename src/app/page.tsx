@@ -12,26 +12,30 @@ import { Cta } from "@/components/landing/Cta";
 export default function Home() {
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col font-sans selection:bg-[#ff690c] selection:text-white overflow-x-hidden">
-      {/* Blurred Header */}
-      <header className="fixed top-0 left-0 z-50 flex h-[70px] w-full items-center border-b border-[#ebebeb]/85 bg-white/70 backdrop-blur-[16px] supports-[backdrop-filter]:bg-white/60">
-        <div className="w-full max-w-[1180px] mx-auto px-6 flex justify-between items-center">
-          <Link href="/" className="font-bold text-[22px] text-black tracking-tight flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-[8px] bg-[#ff690c] flex items-center justify-center text-white shadow-sm">
+      {/* Header */}
+      <header className="fixed top-0 left-0 z-50 flex h-[70px] w-full items-center border-b border-[#ebebeb]/85 bg-white/95 backdrop-blur-[16px] supports-[backdrop-filter]:bg-white/80">
+        <div className="w-full max-w-[1180px] mx-auto px-6 flex justify-between items-center relative">
+          
+          <Link href="/" className="font-bold text-[20px] text-black tracking-tight flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <div className="w-7 h-7 rounded-[8px] bg-[#ff690c] flex items-center justify-center text-white shadow-sm">
               <Zap className="w-4 h-4 fill-current" />
             </div>
             PriceAndSee
           </Link>
-          <nav className="hidden md:flex items-center justify-center rounded-full border border-[#ebebeb] bg-white/80 p-1 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
-            <Link href="#how-it-works" className="text-[#474747] hover:bg-[#fff8f5] hover:text-black relative flex h-9 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Comment ça marche</Link>
-            <Link href="#features" className="text-[#474747] hover:bg-[#fff8f5] hover:text-black relative flex h-9 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Fonctionnalités</Link>
-            <Link href="#pricing" className="text-[#474747] hover:bg-[#fff8f5] hover:text-black relative flex h-9 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Tarifs</Link>
+          
+          <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center justify-center rounded-full border border-[#ebebeb] bg-white p-1 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+            <Link href="#how-it-works" className="text-[#474747] hover:bg-[#fafafa] hover:text-black relative flex h-8 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Comment ça marche</Link>
+            <Link href="#features" className="text-[#474747] hover:bg-[#fafafa] hover:text-black relative flex h-8 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Fonctionnalités</Link>
+            <Link href="#pricing" className="text-[#474747] hover:bg-[#fafafa] hover:text-black relative flex h-8 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Tarifs</Link>
           </nav>
-          <div className="flex gap-3 items-center">
-            <Link href="/login" className="hidden sm:block text-[14px] font-medium text-[#474747] hover:text-black transition-colors px-3">Connexion</Link>
-            <Link href="/register" className="flex items-center gap-1.5 h-[36px] px-5 rounded-[10px] bg-[#ff690c] text-white text-[14px] font-medium whitespace-nowrap shadow-[0_2px_10px_rgb(255,105,12,0.3)] hover:opacity-90 transition-opacity">
+
+          <div className="flex gap-4 items-center">
+            <Link href="/login" className="hidden sm:block text-[14px] font-medium text-[#474747] hover:text-black transition-colors px-1">Connexion</Link>
+            <Link href="/register" className="flex items-center gap-1.5 h-[36px] px-4 rounded-[10px] bg-[#ff690c] text-white text-[14px] font-semibold whitespace-nowrap shadow-[0_2px_10px_rgb(255,105,12,0.3)] hover:opacity-90 transition-opacity">
               Essai gratuit
             </Link>
           </div>
+          
         </div>
       </header>
 
