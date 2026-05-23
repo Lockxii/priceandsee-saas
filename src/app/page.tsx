@@ -53,18 +53,38 @@ export default function Home() {
         <svg
           aria-hidden="true"
           viewBox="0 0 1500 190"
-          className="relative z-0 w-[124vw] max-w-none h-auto -mb-2 opacity-100"
+          className="relative z-0 w-[124vw] max-w-none h-auto -mb-2"
         >
+          <defs>
+            <filter id="footer-wordmark-outer-line">
+              <feMorphology in="SourceGraphic" operator="dilate" radius="1.15" result="expanded" />
+            </filter>
+          </defs>
+
+          {/* Orange text expanded behind */}
           <text
             x="50%"
             y="70%"
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="transparent"
-            stroke="#ff690c"
-            strokeOpacity="0.34"
-            strokeWidth="1.05"
-            paintOrder="stroke"
+            fill="#ff690c"
+            fillOpacity="0.22"
+            filter="url(#footer-wordmark-outer-line)"
+            fontSize="178"
+            fontWeight="900"
+            letterSpacing="-9"
+            fontFamily="var(--font-montserrat), sans-serif"
+          >
+            PRICEANDSEE
+          </text>
+
+          {/* White text masks the body and inner contours, leaving only the outside edge */}
+          <text
+            x="50%"
+            y="70%"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="white"
             fontSize="178"
             fontWeight="900"
             letterSpacing="-9"
