@@ -129,26 +129,3 @@
     scroll-behavior: smooth;
   }
 }
-
-@keyframes title-shine {
-  0% { background-position: 200% center; }
-  100% { background-position: -200% center; }
-}
-
-.animate-title-shine {
-  background: linear-gradient(
-    120deg,
-    #000000 30%,
-    #000000 45%,
-    #ffeed1 48%,
-    #ff690c 50%,
-    #ffeed1 52%,
-    #000000 55%,
-    #000000 70%
-  );
-  background-size: 200% auto;
-  color: transparent;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: title-shine 6s linear infinite;
-}
