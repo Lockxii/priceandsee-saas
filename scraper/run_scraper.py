@@ -9,6 +9,16 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 try:
+    from adapters import adapter_summary, detect_adapter_platform, extract_with_adapters
+except Exception:  # pragma: no cover - keeps the CLI importable during partial installs
+    try:
+        from scraper.adapters import adapter_summary, detect_adapter_platform, extract_with_adapters
+    except Exception:
+        adapter_summary = None
+        detect_adapter_platform = None
+        extract_with_adapters = None
+
+try:
     from scrapling.fetchers import DynamicFetcher, Fetcher, StealthyFetcher
     SCRAPLING_IMPORT_ERROR = None
 except Exception as exc:  # pragma: no cover - used only when the dependency is missing/misinstalled
@@ -676,6 +686,9 @@ def detect_platform(raw: str, url: str = "") -> str | None:
     for needle, name in MARKETPLACE_HINTS.items():
         if needle in host:
             return name
+    adapter_platform = detect_adapter_platform(url, raw) if detect_adapter_platform else None
+    if adapter_platform:
+        return adapter_platform
     if "cdn.shopify.com" in text or "shopify.theme" in text or "shopifyanalytics" in text:
         return "Shopify"
     if "woocommerce" in text or "wp-content/plugins/woocommerce" in text:
@@ -979,7 +992,10 @@ def extract_shopify_variants(page: Any) -> list[dict[str, Any]]:
                 if not isinstance(variant, dict):
                     continue
                 price = clean_price(variant.get("price") or variant.get("compare_at_price"))
-                if price and price > 10000 and isinstance(variant.get("price"), int):
+                raw_variant_price = variant.get("price") or variant.get("compare_at_price")
+                if price and isinstance(raw_variant_price, int):
+                    price = round(price / 100, 2)
+                elif price and re.fullmatch(r"\d{3,}", str(raw_variant_price or "").strip()):
                     price = round(price / 100, 2)
                 item = {
                     "name": clean_text(variant.get("title") or variant.get("name") or variant.get("sku")) or "Variant",
@@ -1004,13 +1020,21 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
 
     data: dict[str, Any] = dict(json_ld)
 
+    adapter_data: dict[str, Any] = {}
+    used_adapters: list[str] = []
+    adapter_info: dict[str, Any] = {}
+    if extract_with_adapters:
+        adapter_data, used_adapters = extract_with_adapters(page, url, raw, include_generic=False)
+    if adapter_summary:
+        adapter_info = adapter_summary(url, raw, page)
+
     profile = profile_for_url(url, raw)
     profile_data = extract_with_selectors(page, profile, raw, url) if profile else {}
     generic_data = extract_with_selectors(page, GENERIC_SELECTORS, raw, url)
     embedded_data = extract_from_embedded_json(page)
     if embedded_data.get("image"):
         embedded_data["image"] = absolutize_url(str(embedded_data["image"]), url)
-    data = merge_missing(data, profile_data, generic_data, embedded_data)
+    data = merge_missing(data, adapter_data, profile_data, generic_data, embedded_data)
 
     title = first_css(page, GENERIC_SELECTORS["title"])
     data["title"] = data.get("title") or title
@@ -1044,6 +1068,10 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
         data["bundleWidget"] = bundle_widget
 
     data["brandSignals"] = extract_brand_signals(page, url, fetcher_used, raw)
+    if adapter_info.get("platform") and not data["brandSignals"].get("platform"):
+        data["brandSignals"]["platform"] = adapter_info["platform"]
+    if used_adapters:
+        data["brandSignals"]["adapters"] = used_adapters
     data["scrapedAt"] = datetime.now(timezone.utc).isoformat()
 
     return compact(data)
