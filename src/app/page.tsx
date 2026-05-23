@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Zap } from "lucide-react";
 import { Hero } from "@/components/landing/Hero";
+import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Features } from "@/components/landing/Features";
 import { Pricing } from "@/components/landing/Pricing";
+import { Faq } from "@/components/landing/Faq";
 
 export default function Home() {
   return (
@@ -17,6 +19,7 @@ export default function Home() {
             PriceAndSee
           </Link>
           <nav className="hidden md:flex items-center justify-center rounded-full border border-[#ebebeb] bg-white/80 p-1 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+            <Link href="#how-it-works" className="text-[#474747] hover:bg-[#fff8f5] hover:text-black relative flex h-9 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Comment ça marche</Link>
             <Link href="#features" className="text-[#474747] hover:bg-[#fff8f5] hover:text-black relative flex h-9 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Fonctionnalités</Link>
             <Link href="#pricing" className="text-[#474747] hover:bg-[#fff8f5] hover:text-black relative flex h-9 items-center rounded-full px-5 text-[14px] font-medium transition-colors">Tarifs</Link>
           </nav>
@@ -31,8 +34,10 @@ export default function Home() {
 
       <main className="flex-1 pt-[70px]">
         <Hero />
+        <div id="how-it-works"><HowItWorks /></div>
         <Features />
         <Pricing />
+        <Faq />
       </main>
 
       <footer className="bg-white border-t border-[#ebebeb] py-16 px-6">
