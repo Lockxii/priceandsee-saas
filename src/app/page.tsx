@@ -48,13 +48,14 @@ export default function Home() {
         <Cta />
       </main>
 
-      {/* Massive Outlined Logo Section */}
+      {/* Massive Brand Wordmark Section */}
       <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-10 relative select-none pointer-events-none">
-        {/* Gradient overlay to fade out the bottom of the text */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white z-10" />
-        <h2 
-          className="text-[14vw] leading-[0.8] font-black uppercase text-transparent relative z-0" 
-          style={{ WebkitTextStroke: '1.5px rgba(255, 105, 12, 0.3)' }}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/35 to-white z-10" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,105,12,0.05),transparent_55%)]" />
+        <h2
+          aria-hidden="true"
+          className="text-[15vw] leading-[0.82] font-black uppercase tracking-[-0.04em] relative z-0 text-[rgba(255,255,255,0.92)]"
+          style={{ WebkitTextStroke: '1px rgba(255, 105, 12, 0.18)' }}
         >
           PRICEANDSEE
         </h2>
