@@ -143,19 +143,19 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {/* Left Column: Charts */}
-                      <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                      {/* Left Column: Visit History Chart */}
+                      <div className="lg:col-span-2">
+                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col">
                           <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
                               <TrendingUp className="w-5 h-5 text-[#ff690c]" />
-                              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Price History</h3>
+                              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Visit History</h3>
                             </div>
                           </div>
                           
-                          <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-4">
-                            {product.priceHistory?.length > 0 ? (
-                              <PriceChart data={product.priceHistory} />
+                          <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-4 flex-1">
+                            {product.brandMetrics?.monthly_visits_history ? (
+                              <PriceChart data={product.brandMetrics.monthly_visits_history} />
                             ) : (
                               <div className="h-[280px] flex flex-col items-center justify-center text-[#8a7668] border border-[#f1ded1] border-dashed rounded-lg">
                                 <LineChart className="w-8 h-8 mb-2 opacity-50" />
@@ -164,21 +164,25 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                             )}
                           </div>
                         </div>
+                      </div>
 
-                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                      {/* Right Column: Description */}
+                      <div className="lg:col-span-1">
+                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-4">
                             <AlignLeft className="w-5 h-5 text-[#ff690c]" />
                             Description
                           </h3>
-                          <div className="text-[#5b4638] text-sm leading-relaxed whitespace-pre-wrap p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
+                          <div className="text-[#5b4638] text-sm leading-relaxed whitespace-pre-wrap p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-auto max-h-[350px] custom-scrollbar">
                             {product.description || "No description available for this product."}
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Right Column */}
-                      <div className="space-y-6">
-                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div className="lg:col-span-2">
+                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm h-full">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Product Info</h3>
                           <div className="space-y-4">
                             <div className="flex justify-between items-center pb-3 border-b border-[#f1ded1]">
@@ -187,7 +191,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                             </div>
                             <div className="flex justify-between items-center pb-3 border-b border-[#f1ded1]">
                               <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU/MPN</span>
-                              <span className="font-bold text-[#24170f] truncate max-w-[150px] text-right">{product.sku || "N/A"}</span>
+                              <span className="font-bold text-[#24170f] truncate max-w-[250px] text-right">{product.sku || "N/A"}</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Rating</span>
@@ -202,8 +206,10 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                             </div>
                           </div>
                         </div>
-                        
-                        <div className="bg-[#ff690c]/5 border border-[#ff690c]/20 p-5 rounded-2xl relative overflow-hidden group shadow-sm">
+                      </div>
+
+                      <div className="lg:col-span-1">
+                        <div className="bg-[#ff690c]/5 border border-[#ff690c]/20 p-5 rounded-2xl relative overflow-hidden group shadow-sm h-full flex flex-col justify-center">
                           <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-[#ff690c] rounded-lg">
                               <Users className="w-4 h-4 text-white" />
