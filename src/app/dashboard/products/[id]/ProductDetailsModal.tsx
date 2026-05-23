@@ -541,6 +541,86 @@ function TrafficSnapshotPanel({ visits, revenue, countries, currency }: { visits
   );
 }
 
+function CompetitorSnapshotPanel({ competitors, technologies, revenue, visits, currency }: { competitors: JsonRecord[]; technologies: string[]; revenue?: number; visits?: number; currency: string }) {
+  const hasSignals = competitors.length > 0 || technologies.length > 0 || revenue !== undefined || visits !== undefined;
+
+  if (!hasSignals) {
+    return (
+      <div className="h-full min-h-[220px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+        <div className="flex items-start justify-between gap-3 flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><Users className="w-4 h-4 text-[#ff690c]" />Competitor snapshot</h3>
+            <p className="mt-1 text-sm text-[#8a7668]">No competitor data from BrandSearch yet.</p>
+          </div>
+          <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
+        </div>
+        <div className="mt-5 rounded-2xl border border-dashed border-[#f1ded1] bg-[#fffaf6] p-5 text-sm text-[#8a7668]">
+          Run a fresh scrape or wait for BrandSearch to return similar shops, tech stack, or revenue metrics for this domain.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full min-h-[330px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+      <div className="flex items-start justify-between gap-3 flex-shrink-0">
+        <div>
+          <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><Users className="w-4 h-4 text-[#ff690c]" />Competitor snapshot</h3>
+          <p className="mt-1 text-sm text-[#8a7668]">Latest BrandSearch signals, no competitor revenue history yet.</p>
+        </div>
+        <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 xl:grid-cols-4 gap-4 flex-1 min-h-0">
+        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Similar shops</p>
+          <p className="mt-3 text-3xl font-black text-[#24170f]">{competitors.length || "—"}</p>
+          <p className="mt-2 text-xs font-medium text-[#8a7668]">Returned by BrandSearch.</p>
+        </div>
+        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Revenue</p>
+          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatMoney(revenue, currency)}</p>
+          <p className="mt-2 text-xs font-medium text-[#8a7668]">Only if returned.</p>
+        </div>
+        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Visits</p>
+          <p className="mt-3 text-3xl font-black text-[#24170f]">{formatCompact(visits)}</p>
+          <p className="mt-2 text-xs font-medium text-[#8a7668]">Traffic signal.</p>
+        </div>
+        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Tech stack</p>
+          {technologies.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {technologies.slice(0, 8).map((tech) => <span key={tech} className="px-2.5 py-1 bg-white border border-[#f1ded1] rounded-md text-xs font-semibold text-[#5b4638]">{tech}</span>)}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[#8a7668]">No tech stack returned.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-shrink-0">
+        <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Similar shops</p>
+        {competitors.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {competitors.slice(0, 4).map((item, index) => (
+              <div key={index} className="flex items-center justify-between gap-3 rounded-xl border border-[#f1ded1] bg-white px-3 py-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-[#24170f] truncate">{competitorName(item)}</p>
+                  <p className="text-xs text-[#8a7668] truncate">{competitorDomain(item)}</p>
+                </div>
+                <span className="text-xs font-black text-[#ff690c] whitespace-nowrap">{formatMoney(competitorRevenue(item), currency)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[#8a7668]">No similar shops returned.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BundleWidgetPreview({ product }: { product: ProductDetails }) {
   const [copied, setCopied] = useState(false);
   const html = product.bundleWidget?.html || "";
@@ -781,42 +861,45 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                 )}
 
                 {activeTab === "Competitors" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 h-full overflow-hidden">
-                    <div className="lg:col-span-2 h-full min-h-0">
-                      {derived.competitorSeries.length > 0 ? (
+                  derived.competitorSeries.length > 0 ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 h-full overflow-hidden">
+                      <div className="lg:col-span-2 h-full min-h-0">
                         <CompetitorRevenueChart series={derived.competitorSeries} currency={product.currency || "USD"} />
-                      ) : (
-                        <div className="flex h-full min-h-[330px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#f1ded1] bg-white text-[#8a7668] shadow-sm">
-                          <BarChart3 className="mb-2 h-8 w-8 opacity-50" />
-                          <span className="font-medium">Waiting for BrandSearch competitor revenue history...</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-4 overflow-hidden">
-                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm">
-                        <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3 flex items-center gap-2"><Globe2 className="w-4 h-4 text-[#ff690c]" />Competitor Stack</h3>
-                        <div className="flex flex-wrap gap-2">{derived.technologies.length ? derived.technologies.map((tech) => <span key={tech} className="px-2.5 py-1 bg-[#fffaf6] border border-[#f1ded1] rounded-md text-xs font-semibold text-[#5b4638]">{tech}</span>) : <span className="text-xs text-[#a99485]">No tech stack data available.</span>}</div>
                       </div>
-                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm">
-                        <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-[#ff690c]" />Similar shops</h3>
-                        <div className="space-y-2">
-                          {derived.competitors.length ? derived.competitors.slice(0, 4).map((item, index) => (
-                            <div key={index} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#fffaf6] border border-[#f1ded1]">
-                              <div className="min-w-0">
-                                <p className="font-bold text-sm text-[#24170f] truncate">{competitorName(item)}</p>
-                                <p className="text-xs text-[#8a7668] truncate">{competitorDomain(item)}</p>
+                      <div className="space-y-4 overflow-hidden">
+                        <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm">
+                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3 flex items-center gap-2"><Globe2 className="w-4 h-4 text-[#ff690c]" />Competitor Stack</h3>
+                          <div className="flex flex-wrap gap-2">{derived.technologies.length ? derived.technologies.map((tech) => <span key={tech} className="px-2.5 py-1 bg-[#fffaf6] border border-[#f1ded1] rounded-md text-xs font-semibold text-[#5b4638]">{tech}</span>) : <span className="text-xs text-[#a99485]">No tech stack data available.</span>}</div>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm">
+                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-[#ff690c]" />Similar shops</h3>
+                          <div className="space-y-2">
+                            {derived.competitors.length ? derived.competitors.slice(0, 4).map((item, index) => (
+                              <div key={index} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#fffaf6] border border-[#f1ded1]">
+                                <div className="min-w-0">
+                                  <p className="font-bold text-sm text-[#24170f] truncate">{competitorName(item)}</p>
+                                  <p className="text-xs text-[#8a7668] truncate">{competitorDomain(item)}</p>
+                                </div>
+                                <span className="text-xs font-black text-[#ff690c] whitespace-nowrap">{formatMoney(competitorRevenue(item), product.currency || "USD")}</span>
                               </div>
-                              <span className="text-xs font-black text-[#ff690c] whitespace-nowrap">{formatMoney(competitorRevenue(item), product.currency || "USD")}</span>
-                            </div>
-                          )) : <span className="text-xs text-[#a99485]">No similar shops from BrandSearch yet.</span>}
+                            )) : <span className="text-xs text-[#a99485]">No similar shops from BrandSearch yet.</span>}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><DollarSign className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Revenue</p><p className="text-xl font-black text-[#24170f]">{formatMoney(derived.revenue, product.currency || "USD")}</p></div>
+                          <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><ActivityIcon className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Visits</p><p className="text-xl font-black text-[#24170f]">{formatCompact(derived.visits)}</p></div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><DollarSign className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Revenue</p><p className="text-xl font-black text-[#24170f]">{formatMoney(derived.revenue, product.currency || "USD")}</p></div>
-                        <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm"><ActivityIcon className="w-4 h-4 text-[#ff690c] mb-2" /><p className="text-xs font-bold text-[#8a7668] uppercase">Visits</p><p className="text-xl font-black text-[#24170f]">{formatCompact(derived.visits)}</p></div>
-                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <CompetitorSnapshotPanel
+                      competitors={derived.competitors}
+                      technologies={derived.technologies}
+                      revenue={derived.revenue}
+                      visits={derived.visits}
+                      currency={product.currency || "USD"}
+                    />
+                  )
                 )}
 
                 {activeTab === "Activity" && (
