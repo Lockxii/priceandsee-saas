@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { effectiveUserLimits, nextMonthlyResetDate } from "@/lib/plans";
 
 type ExtractedProduct = {
   title?: string;
@@ -159,8 +160,25 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
   const startedAt = Date.now();
   const source = options.source || "manual";
 
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findUnique({ where: { id: productId }, include: { user: true } });
   if (!product) throw new Error("Product not found");
+
+  const now = new Date();
+  const resetDate = product.user.monthlyChecksReset || now;
+  const needsReset = resetDate <= now;
+  const monthlyChecksUsed = needsReset ? 0 : product.user.monthlyChecksUsed;
+  const limits = effectiveUserLimits(product.user);
+
+  if (monthlyChecksUsed >= limits.monthlyCheckLimit) {
+    throw new Error(`Monthly scraping quota reached (${limits.monthlyCheckLimit})`);
+  }
+
+  if (needsReset) {
+    await prisma.user.update({
+      where: { id: product.userId },
+      data: { monthlyChecksUsed: 0, monthlyChecksReset: nextMonthlyResetDate(now) },
+    });
+  }
 
   const job = await prisma.scrapingJob.create({
     data: { productId, status: "PENDING", source },
@@ -208,6 +226,11 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
         where: { id: job.id },
         data: { status: "SUCCESS", durationMs: Date.now() - startedAt },
       });
+
+      await tx.user.update({
+        where: { id: product.userId },
+        data: { monthlyChecksUsed: { increment: 1 } },
+      });
     });
 
     return { ok: true, productId, jobId: job.id, extracted, changed };
@@ -222,6 +245,10 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
         where: { id: job.id },
         data: { status: "FAILED", errorMessage: message, durationMs: Date.now() - startedAt },
       }),
+      prisma.user.update({
+        where: { id: product.userId },
+        data: { monthlyChecksUsed: { increment: 1 } },
+      }),
     ]);
 
     return { ok: false, productId, jobId: job.id, error: message };
@@ -229,13 +256,29 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
 }
 
 export async function scrapeDueProducts(limit = 10) {
+  const now = new Date();
   const products = await prisma.product.findMany({
+    where: {
+      OR: [
+        { lastCheckedAt: null },
+        { lastCheckedAt: { lt: new Date(now.getTime() - 60 * 60 * 1000) } },
+      ],
+    },
     orderBy: [{ lastCheckedAt: "asc" }, { createdAt: "asc" }],
-    take: limit,
+    take: limit * 3,
+    include: { user: true },
   });
 
+  const due = products.filter((product) => {
+    const limits = effectiveUserLimits(product.user);
+    if (product.user.monthlyChecksUsed >= limits.monthlyCheckLimit && product.user.monthlyChecksReset > now) return false;
+    if (!product.lastCheckedAt) return true;
+    const nextCheckAt = new Date(product.lastCheckedAt.getTime() + limits.checkIntervalHours * 60 * 60 * 1000);
+    return nextCheckAt <= now;
+  }).slice(0, limit);
+
   const results = [];
-  for (const product of products) {
+  for (const product of due) {
     results.push(await scrapeProduct(product.id, { source: "cron" }));
   }
 

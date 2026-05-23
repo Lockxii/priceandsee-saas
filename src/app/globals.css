@@ -173,6 +173,22 @@
   animation: marquee 40s linear infinite;
 }
 
+.admin-input {
+  width: 100%;
+  height: 38px;
+  border-radius: 0.5rem;
+  border: 1px solid #d7dce3;
+  background: white;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.admin-input:focus {
+  border-color: #17120f;
+  box-shadow: 0 0 0 2px rgba(23, 18, 15, 0.1);
+}
+
 .animate-marquee-reverse {
   animation: marquee 40s linear infinite reverse;
 }

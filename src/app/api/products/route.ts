@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { effectiveUserLimits } from "@/lib/plans";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -18,8 +19,10 @@ export async function POST(req: Request) {
       include: { _count: { select: { products: true } } }
     });
 
-    if (user?.plan === "FREE" && user._count.products >= 10) {
-      return NextResponse.json({ error: "Plan limit reached. Please upgrade to add more products." }, { status: 403 });
+    const limits = user ? effectiveUserLimits(user) : effectiveUserLimits({ plan: "FREE" });
+
+    if (!user || user._count.products >= limits.maxUrls) {
+      return NextResponse.json({ error: `URL limit reached (${limits.maxUrls}). Please upgrade or ask admin for a higher quota.` }, { status: 403 });
     }
 
     const product = await prisma.product.create({
@@ -28,7 +31,8 @@ export async function POST(req: Request) {
         userId,
         alertSetting: {
           create: {
-            emailEnabled: true
+            emailEnabled: limits.emailAlertsEnabled,
+            slackEnabled: limits.slackAlertsEnabled
           }
         }
       }

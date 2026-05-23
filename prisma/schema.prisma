@@ -19,6 +19,14 @@ model User {
   onboardingCompleted Boolean   @default(false)
   stripeCustomerId    String?
   plan                String    @default("FREE") // FREE, STARTER, GROWTH, SCALE, ENTERPRISE
+  maxUrls             Int       @default(10)
+  checkIntervalHours  Int       @default(24)
+  monthlyCheckLimit   Int       @default(300)
+  monthlyChecksUsed   Int       @default(0)
+  monthlyChecksReset  DateTime  @default(now())
+  emailAlertsEnabled  Boolean   @default(true)
+  slackAlertsEnabled  Boolean   @default(false)
+  adminNotes          String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   products            Product[]
