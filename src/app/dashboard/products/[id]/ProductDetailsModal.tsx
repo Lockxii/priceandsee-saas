@@ -96,7 +96,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                 {activeTab === 'Overview' && (
                   <div className="space-y-6">
                     {/* Top Metrics Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
                         <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Current Price</p>
                         <div className="flex items-end gap-2">
@@ -119,16 +119,6 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                             <span className="text-[#a99485] font-medium">Unknown</span>
                           )}
                         </div>
-                      </div>
-
-                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-2">
-                          <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider">Est. Monthly Visits</p>
-                        </div>
-                        <p className="text-3xl font-black text-[#24170f]">
-                          {product.brandMetrics?.monthly_visits ? new Intl.NumberFormat('en-US').format(product.brandMetrics.monthly_visits) : "—"}
-                        </p>
-                        <p className="text-xs text-[#a99485] mt-2 truncate">Source: BrandSearch API</p>
                       </div>
 
                       <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
