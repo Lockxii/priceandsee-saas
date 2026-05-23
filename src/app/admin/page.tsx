@@ -71,7 +71,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#fffaf6] flex text-[#17120f]">
+    <div className="h-screen overflow-hidden bg-[#fffaf6] flex text-[#17120f]">
       <aside className="w-[280px] bg-white border-r border-[#f1ded1] flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-[#f1ded1]">
           <Link href="/" className="font-bold text-xl text-[#ff690c]">PriceAndSee</Link>
@@ -106,8 +106,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-[#f1ded1]">
           <div className="flex items-center gap-3 font-bold text-[#35251c]"><Shield className="h-4 w-4" /> Admin Panel</div>
-          <div className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#17120f] px-4 text-sm font-bold text-white shadow-[0_12px_26px_-16px_rgba(0,0,0,0.8)]">
-            <BarChart3 className="h-4 w-4" /> Analytics
+          <div className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-[#ff690c]">
+            Admin access
           </div>
         </header>
 
@@ -149,7 +149,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       <div className="flex items-start gap-3 min-w-0">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef0f4] font-bold text-[#6b7280]">{(user.name || user.email).slice(0, 2).toUpperCase()}</div>
                         <div className="min-w-0">
-                          <p className="font-semibold">{user.name || "No name"}</p>
+                          <p className="font-semibold">{user.name || user.email.split("@")[0]}</p>
                           <p className="truncate text-sm text-[#4b5563]">{user.email}</p>
                           <p className="mt-3 text-sm"><span className="text-[#666]">User ID:</span> <code>{user.id}</code></p>
                         </div>
