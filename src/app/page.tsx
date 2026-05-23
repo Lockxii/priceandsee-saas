@@ -42,7 +42,19 @@ export default function Home() {
         <Cta />
       </main>
 
-      <footer className="bg-white border-t border-[#ebebeb] py-16 px-6">
+      {/* Massive Outlined Logo Section */}
+      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-10 relative select-none pointer-events-none">
+        {/* Gradient overlay to fade out the bottom of the text */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white z-10" />
+        <h2 
+          className="text-[17vw] leading-[0.8] font-black uppercase tracking-tighter text-transparent" 
+          style={{ WebkitTextStroke: '1.5px rgba(255, 105, 12, 0.3)' }}
+        >
+          PRICEANDSEE
+        </h2>
+      </div>
+
+      <footer className="bg-white border-t border-[#ebebeb] py-16 px-6 relative z-20">
         <div className="max-w-[1180px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="font-bold text-[20px] text-black flex items-center gap-2">
             <div className="w-7 h-7 rounded-[7px] bg-[#ff690c] flex items-center justify-center text-white">
