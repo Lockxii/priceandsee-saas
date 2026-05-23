@@ -17,7 +17,11 @@ export function Hero() {
         <div className="relative w-full max-w-[900px] h-full border-x border-[#ff690c]/20" />
       </div>
 
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-[#ff690c]/[0.05] rounded-full blur-[120px] pointer-events-none z-0" />
+      <motion.div 
+        animate={{ scale: [1, 1.05, 1], opacity: [0.6, 0.9, 0.6] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-[#ff690c]/[0.05] rounded-full blur-[120px] pointer-events-none z-0" 
+      />
       
       <div className="relative z-10 text-center max-w-[1000px] px-6 mx-auto flex flex-col items-center">
         
@@ -25,10 +29,14 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="text-[44px] sm:text-[56px] md:text-[72px] font-[800] text-black tracking-tight leading-[1.05] mb-8"
+          className="text-[44px] sm:text-[56px] md:text-[68px] font-[800] tracking-tight leading-[1.05] mb-8"
         >
-          Trouvez les <span className="text-[#ff690c]">Prix, Stocks &amp;</span> <br className="hidden md:block"/>
-          <span className="text-[#ff690c]">Promotions</span> qui scalent <span className="italic font-serif font-medium text-[#474747]">en ce moment.</span>
+          <span className="animate-title-shine text-black">
+            Trouvez les prix, stocks et promotions
+          </span>
+          <br className="hidden md:block"/>
+          <span className="animate-title-shine text-black">qui scalent </span>
+          <span className="italic font-serif font-medium text-[#474747]">en ce moment.</span>
         </motion.h1>
         
         <motion.p 
