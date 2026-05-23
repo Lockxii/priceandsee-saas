@@ -496,19 +496,57 @@ async function runPythonScraper(url: string): Promise<ExtractedProduct | null> {
   return null;
 }
 
+function mergeDeepObjects(...values: unknown[]): JsonRecord | null {
+  const result: JsonRecord = {};
+  let hasValue = false;
+  for (const value of values) {
+    if (!isRecord(value)) continue;
+    hasValue = true;
+    for (const [key, incoming] of Object.entries(value)) {
+      const existing = result[key];
+      result[key] = isRecord(existing) && isRecord(incoming)
+        ? (mergeDeepObjects(existing, incoming) as JsonRecord)
+        : incoming;
+    }
+  }
+  return hasValue ? result : null;
+}
+
+async function fetchBrandJson(url: string, apiKey: string) {
+  const res = await fetch(url, {
+    headers: { "X-API-Key": apiKey, Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) return null;
+  return await res.json().catch(() => null);
+}
+
 async function fetchBrandMetrics(url: string, scrapedSignals?: JsonRecord) {
   const apiKey = process.env.BRANDSEARCH_API_KEY;
   if (!apiKey) return scrapedSignals || null;
 
   try {
-    const domain = new URL(url).hostname.replace(/^www\./, '');
-    const res = await fetch(`https://api.brandsearch.co/v1/brands/by-url/${domain}`, {
-      headers: { "X-API-Key": apiKey },
-      signal: AbortSignal.timeout(10000)
-    });
-    if (res.ok) {
-      return { ...(scrapedSignals || {}), ...(await res.json()) };
-    }
+    const domain = new URL(url).hostname.replace(/^www\./, "");
+    const encoded = encodeURIComponent(domain);
+    const baseUrls = [
+      `https://api.brandsearch.co/v1/brands/by-url/${encoded}`,
+      `https://api.brandsearch.co/v1/brands/by-domain/${encoded}`,
+      `https://api.brandsearch.co/v1/brands/${encoded}`,
+    ];
+
+    const primary = await fetchBrandJson(baseUrls[0], apiKey);
+    const extras = await Promise.all([
+      fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/traffic`, apiKey),
+      fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/history`, apiKey),
+      fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/competitors`, apiKey),
+      fetchBrandJson(`https://api.brandsearch.co/v1/traffic/${encoded}`, apiKey),
+      fetchBrandJson(`https://api.brandsearch.co/v1/brands/${encoded}/traffic`, apiKey),
+      fetchBrandJson(`https://api.brandsearch.co/v1/brands/${encoded}/history`, apiKey),
+      fetchBrandJson(`https://api.brandsearch.co/v1/brands/${encoded}/competitors`, apiKey),
+    ]);
+
+    const fallbackPrimary = primary || await fetchBrandJson(baseUrls[1], apiKey) || await fetchBrandJson(baseUrls[2], apiKey);
+    return mergeDeepObjects(scrapedSignals, fallbackPrimary, ...extras) || scrapedSignals || null;
   } catch (e) {
     console.error("Brandsearch API error:", e);
   }

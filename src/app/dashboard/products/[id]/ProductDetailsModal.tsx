@@ -22,6 +22,13 @@ type BrandMetricPoint = {
 type BrandMetrics = JsonRecord & {
   niche?: string;
   target_persona?: string;
+  monthly_visits?: number;
+  monthlyVisits?: number;
+  visits?: number;
+  traffic?: number;
+  monthly_revenue?: number;
+  monthlyRevenue?: number;
+  revenue?: number;
   monthly_visits_history?: BrandMetricPoint[];
   monthlyVisitsHistory?: BrandMetricPoint[];
   visits_history?: BrandMetricPoint[];
@@ -118,12 +125,50 @@ function asString(value: unknown): string | undefined {
 }
 
 function readNumberFromKeys(record: JsonRecord, keys: string[]): number | undefined {
-  for (const key of keys) {
-    const value = record[key];
+  const wanted = new Set(keys.map(normalizeMetricKey));
+  for (const [key, value] of Object.entries(record)) {
+    if (!wanted.has(normalizeMetricKey(key))) continue;
     const number = typeof value === "number" ? value : Number(value);
     if (Number.isFinite(number)) return number;
   }
   return undefined;
+}
+
+function normalizeMetricKey(value: string) {
+  return value.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function walkMetricValues(value: unknown, visitor: (value: unknown, key: string, depth: number) => void, depth = 0, key = "") {
+  if (depth > 5 || value === null || value === undefined) return;
+  visitor(value, key, depth);
+  if (Array.isArray(value)) {
+    value.slice(0, 80).forEach((item, index) => walkMetricValues(item, visitor, depth + 1, key ? `${key}.${index}` : String(index)));
+    return;
+  }
+  if (isRecord(value)) {
+    Object.entries(value).slice(0, 120).forEach(([childKey, child]) => walkMetricValues(child, visitor, depth + 1, key ? `${key}.${childKey}` : childKey));
+  }
+}
+
+function findNestedNumber(record: JsonRecord, keys: string[]) {
+  const wanted = keys.map(normalizeMetricKey);
+  let found: number | undefined;
+  walkMetricValues(record, (value, key) => {
+    if (found !== undefined) return;
+    const normalizedKey = normalizeMetricKey(key);
+    if (!wanted.some((item) => normalizedKey === item || normalizedKey.endsWith(item) || normalizedKey.includes(item))) return;
+    const number = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(number)) found = number;
+  });
+  return found;
+}
+
+function nestedArrays(record: JsonRecord, predicate: (key: string) => boolean) {
+  const arrays: unknown[][] = [];
+  walkMetricValues(record, (value, key) => {
+    if (Array.isArray(value) && predicate(normalizeMetricKey(key))) arrays.push(value);
+  });
+  return arrays;
 }
 
 function formatCompact(value?: number | null, suffix = "") {
@@ -152,33 +197,54 @@ function metricText(metrics: BrandMetrics | null | undefined, keys: string[], fa
 
 function getMonthlyVisits(metrics?: BrandMetrics | null) {
   if (!metrics) return undefined;
-  return readNumberFromKeys(metrics, ["monthly_visits", "monthlyVisits", "visits", "traffic"]);
+  return readNumberFromKeys(metrics, ["monthly_visits", "monthlyVisits", "visits", "traffic", "estimated_monthly_visits", "monthlyTraffic"]) ??
+    findNestedNumber(metrics, ["monthly_visits", "monthlyVisits", "estimated_monthly_visits", "monthlyTraffic", "visits", "traffic"]);
 }
 
 function getRevenueMetric(metrics?: BrandMetrics | null) {
   if (!metrics) return undefined;
-  return readNumberFromKeys(metrics, ["monthly_revenue", "monthlyRevenue", "revenue"]);
+  return readNumberFromKeys(metrics, ["monthly_revenue", "monthlyRevenue", "revenue", "estimated_monthly_revenue"]) ??
+    findNestedNumber(metrics, ["monthly_revenue", "monthlyRevenue", "estimated_monthly_revenue", "revenue"]);
+}
+
+function normalizeVisitPoint(item: unknown, index: number) {
+  if (typeof item === "number" && Number.isFinite(item)) {
+    return { month: MONTH_NAMES[index % 12], visits: item };
+  }
+  if (Array.isArray(item)) {
+    const numberValue = item.find((value) => Number.isFinite(Number(value)) && !String(value).match(/^\d{4}[-/]/));
+    const labelValue = item.find((value) => typeof value === "string" && value.trim() && value !== numberValue);
+    const visits = numberValue !== undefined ? Number(numberValue) : undefined;
+    if (visits === undefined || !Number.isFinite(visits)) return null;
+    return { month: asString(labelValue) || MONTH_NAMES[index % 12], visits };
+  }
+  if (!isRecord(item)) return null;
+  const visits = readNumberFromKeys(item, ["visits", "monthly_visits", "monthlyVisits", "value", "traffic", "count", "estimated_visits", "monthlyTraffic"]);
+  if (visits === undefined) return null;
+  return {
+    month: asString(item.month) || asString(item.date) || asString(item.period) || asString(item.label) || asString(item.name) || MONTH_NAMES[index % 12],
+    visits,
+  };
 }
 
 function normalizeVisitHistory(metrics?: BrandMetrics | null, latestVisits?: number) {
   if (!metrics) return undefined;
-  const candidates = [metrics.monthly_visits_history, metrics.monthlyVisitsHistory, metrics.visits_history, metrics.traffic_history, metrics.history];
+  const directCandidates = [metrics.monthly_visits_history, metrics.monthlyVisitsHistory, metrics.visits_history, metrics.traffic_history, metrics.history];
+  const recursiveCandidates = nestedArrays(metrics, (key) =>
+    key.includes("history") && (key.includes("visit") || key.includes("traffic") || key.includes("monthly")) ||
+    key.includes("monthlyvisit") ||
+    key.includes("traffichistory") ||
+    key.includes("visitshistory")
+  );
+  const candidates = [...directCandidates, ...recursiveCandidates];
 
   for (const candidate of candidates) {
     if (!Array.isArray(candidate)) continue;
     const points = candidate
-      .map((item, index) => {
-        if (!isRecord(item)) return null;
-        const visits = readNumberFromKeys(item, ["visits", "monthly_visits", "monthlyVisits", "value", "traffic"]);
-        if (visits === undefined) return null;
-        return {
-          month: asString(item.month) || asString(item.date) || asString(item.period) || MONTH_NAMES[index % 12],
-          visits,
-        };
-      })
+      .map(normalizeVisitPoint)
       .filter((item): item is { month: string; visits: number } => item !== null)
       .slice(-12);
-    if (points.length) return points;
+    if (points.length > 1) return points;
   }
 
   return latestVisits !== undefined ? [{ month: "Latest", visits: latestVisits }] : undefined;
@@ -186,7 +252,9 @@ function normalizeVisitHistory(metrics?: BrandMetrics | null, latestVisits?: num
 
 function normalizeTrafficCountries(metrics?: BrandMetrics | null) {
   if (!metrics) return [] as TrafficCountry[];
-  const candidates = [metrics.visitCountries, metrics.traffic_countries, metrics.top_countries, metrics.countries, metrics.country_breakdown, metrics.traffic_by_country];
+  const directCandidates = [metrics.visitCountries, metrics.traffic_countries, metrics.top_countries, metrics.countries, metrics.country_breakdown, metrics.traffic_by_country];
+  const recursiveCandidates = nestedArrays(metrics, (key) => key.includes("countr") || key.includes("geo") || key.includes("market"));
+  const candidates = [...directCandidates, ...recursiveCandidates];
 
   for (const candidate of candidates) {
     if (!Array.isArray(candidate)) continue;
@@ -216,8 +284,9 @@ function normalizeTrafficCountries(metrics?: BrandMetrics | null) {
 
 function normalizeCompetitors(metrics?: BrandMetrics | null) {
   if (!metrics) return [] as JsonRecord[];
-  const candidates = [metrics.competitors, metrics.similar_brands, metrics.similarBrands, metrics.competitor_overlap, metrics.alternatives, metrics.similar_sites, metrics.similarSites];
-  for (const candidate of candidates) {
+  const directCandidates = [metrics.competitors, metrics.similar_brands, metrics.similarBrands, metrics.competitor_overlap, metrics.alternatives, metrics.similar_sites, metrics.similarSites];
+  const recursiveCandidates = nestedArrays(metrics, (key) => key.includes("competitor") || key.includes("similar") || key.includes("alternative"));
+  for (const candidate of [...directCandidates, ...recursiveCandidates]) {
     if (Array.isArray(candidate)) return candidate.filter(isRecord).slice(0, 6);
   }
   return [] as JsonRecord[];
@@ -225,7 +294,7 @@ function normalizeCompetitors(metrics?: BrandMetrics | null) {
 
 function normalizeTechnologies(metrics?: BrandMetrics | null) {
   if (!metrics) return [];
-  const tech = metrics.technologies || metrics.tech_stack || metrics.techStack;
+  const tech = metrics.technologies || metrics.tech_stack || metrics.techStack || nestedArrays(metrics, (key) => key.includes("technolog") || key.includes("techstack"))[0];
   if (Array.isArray(tech)) return tech.map(String).filter(Boolean).slice(0, 12);
   return [];
 }
@@ -241,7 +310,7 @@ function competitorDomain(item: JsonRecord) {
 }
 
 function competitorRevenue(item: JsonRecord) {
-  return readNumberFromKeys(item, ["revenue", "monthly_revenue", "monthlyRevenue"]);
+  return readNumberFromKeys(item, ["revenue", "monthly_revenue", "monthlyRevenue", "estimated_monthly_revenue"]);
 }
 
 function competitorKey(item: JsonRecord, index: number) {
@@ -249,13 +318,15 @@ function competitorKey(item: JsonRecord, index: number) {
 }
 
 function competitorHistory(item: JsonRecord) {
-  const candidates = [item.revenue_history, item.revenueHistory, item.monthly_revenue_history, item.monthlyRevenueHistory, item.history];
+  const directCandidates = [item.revenue_history, item.revenueHistory, item.monthly_revenue_history, item.monthlyRevenueHistory, item.history];
+  const recursiveCandidates = nestedArrays(item, (key) => key.includes("history") && (key.includes("revenue") || key.includes("sales")) || key.includes("revenuehistory"));
+  const candidates = [...directCandidates, ...recursiveCandidates];
   for (const candidate of candidates) {
     if (!Array.isArray(candidate)) continue;
     const points = candidate
       .map((point, pointIndex) => {
         if (!isRecord(point)) return null;
-        const revenue = readNumberFromKeys(point, ["revenue", "monthly_revenue", "monthlyRevenue", "value"]);
+        const revenue = readNumberFromKeys(point, ["revenue", "monthly_revenue", "monthlyRevenue", "value", "sales", "estimated_monthly_revenue"]);
         if (revenue === undefined) return null;
         return {
           month: asString(point.month) || asString(point.date) || asString(point.period) || MONTH_NAMES[pointIndex % 12],

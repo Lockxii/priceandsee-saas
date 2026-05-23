@@ -38,18 +38,19 @@ function parseAssetRequest(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const asset = parseAssetRequest(req);
   if (asset.error) return asset.error;
   const { parsed, name, inline } = asset;
 
+  const session = await getServerSession(authOptions);
+  if (!inline && !session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
     const response = await fetch(parsed.toString(), {
       headers: {
-        "User-Agent": "Mozilla/5.0 PriceAndSee Asset Downloader",
+        "User-Agent": "Mozilla/5.0 (compatible; PriceAndSee/1.0; +https://priceandsee.app)",
         Accept: "image/avif,image/webp,image/png,image/jpeg,image/gif,image/svg+xml,*/*;q=0.8",
+        Referer: `${parsed.protocol}//${parsed.host}/`,
       },
       signal: AbortSignal.timeout(20000),
     });

@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urljoin, urlparse
+from urllib.request import Request, urlopen
 
 try:
     from adapters import adapter_summary, detect_adapter_platform, extract_with_adapters
@@ -1001,8 +1002,18 @@ def is_probably_product_image(url: str) -> bool:
     return True
 
 
+def prefer_https_url(value: str) -> str:
+    try:
+        parsed = urlparse(value)
+    except Exception:
+        return value
+    if parsed.scheme == "http" and parsed.netloc:
+        return parsed._replace(scheme="https").geturl()
+    return value
+
+
 def image_item(url: str, base_url: str, source: str, alt: str | None = None) -> dict[str, Any] | None:
-    absolute = absolutize_url(url, base_url)
+    absolute = prefer_https_url(absolutize_url(url.rstrip(");, \"'"), base_url))
     if not is_probably_product_image(absolute):
         return None
     return compact({"url": absolute, "alt": alt, "source": source, "type": "image"})
@@ -1074,6 +1085,108 @@ def enrich_reviews_from_counts(existing: list[dict[str, Any]], rating: float | N
     return [compact({"rating": rating, "count": reviews_count, "source": "aggregate-rating"})]
 
 
+def fetch_json_url(url: str, timeout: int = 12) -> Any:
+    request = Request(url, headers={
+        "User-Agent": "Mozilla/5.0 PriceAndSee Scraper",
+        "Accept": "application/json,text/plain,*/*;q=0.8",
+    })
+    with urlopen(request, timeout=timeout) as response:
+        raw = response.read(2_500_000).decode("utf-8", "ignore")
+    return json.loads(raw)
+
+
+def shopify_product_json_urls(url: str) -> list[str]:
+    parsed = urlparse(url)
+    path = parsed.path.split("?", 1)[0].rstrip("/")
+    match = re.search(r"/products/([^/?#]+)", path)
+    if not match:
+        return []
+    base = f"{parsed.scheme or 'https'}://{parsed.netloc}/products/{match.group(1)}"
+    return [f"{base}.js", f"{base}.json"]
+
+
+def shopify_price(value: Any) -> float | None:
+    price = clean_price(value)
+    if price is None:
+        return None
+    if isinstance(value, int) and value >= 1000:
+        return round(price / 100, 2)
+    if isinstance(value, str) and re.fullmatch(r"\d{4,}", value.strip()):
+        return round(price / 100, 2)
+    return price
+
+
+def extract_shopify_product_json(url: str) -> dict[str, Any]:
+    for endpoint in shopify_product_json_urls(url):
+        try:
+            parsed = fetch_json_url(endpoint)
+        except Exception:
+            continue
+        product = parsed.get("product") if isinstance(parsed, dict) and isinstance(parsed.get("product"), dict) else parsed
+        if not isinstance(product, dict):
+            continue
+
+        media: list[dict[str, Any]] = []
+        for image in product.get("images") or []:
+            if isinstance(image, dict):
+                src = image.get("src") or image.get("url") or image.get("original_src")
+                alt = clean_text(image.get("alt"))
+            else:
+                src = image
+                alt = None
+            if src:
+                item = image_item(str(src), url, "shopify-product-json", alt)
+                if item:
+                    media.append(item)
+
+        for item in product.get("media") or []:
+            if not isinstance(item, dict):
+                continue
+            preview = item.get("preview_image")
+            src = None
+            if isinstance(preview, dict):
+                src = preview.get("src") or preview.get("url")
+            src = src or item.get("src") or item.get("url")
+            if src:
+                image = image_item(str(src), url, "shopify-product-media", clean_text(item.get("alt")))
+                if image:
+                    media.append(image)
+
+        featured = product.get("featured_image")
+        if isinstance(featured, dict):
+            featured = featured.get("src") or featured.get("url")
+        featured_item = image_item(str(featured), url, "shopify-featured", "Featured product image") if featured else None
+        if featured_item:
+            media.insert(0, featured_item)
+
+        variants: list[dict[str, Any]] = []
+        for variant in (product.get("variants") or [])[:30]:
+            if not isinstance(variant, dict):
+                continue
+            variant_item = compact({
+                "name": clean_text(variant.get("title") or variant.get("name") or variant.get("sku")) or "Variant",
+                "price": shopify_price(variant.get("price")),
+                "sku": clean_text(variant.get("sku")),
+                "id": variant.get("id"),
+                "available": variant.get("available"),
+                "url": f"?variant={variant.get('id')}" if variant.get("id") else None,
+            })
+            if variant_item.get("price") is not None:
+                variants.append(variant_item)
+
+        return compact({
+            "title": clean_text(product.get("title")),
+            "description": clean_text(product.get("description") or product.get("body_html")),
+            "brand": clean_text(product.get("vendor")),
+            "price": shopify_price(product.get("price") or product.get("price_min")),
+            "stockStatus": "In Stock" if product.get("available") is True else "Out of Stock" if product.get("available") is False else None,
+            "image": media[0]["url"] if media else None,
+            "productMedia": unique(media)[:30],
+            "bundlePrices": unique(variants)[:30] if len(variants) > 1 else None,
+        })
+    return {}
+
+
 def extract_shopify_variants(page: Any) -> list[dict[str, Any]]:
     variants: list[dict[str, Any]] = []
     scripts = all_css(page, 'script[type="application/json"]::text', limit=40)
@@ -1140,9 +1253,10 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
     profile_data = extract_with_selectors(page, profile, raw, url) if profile else {}
     generic_data = extract_with_selectors(page, GENERIC_SELECTORS, raw, url)
     embedded_data = extract_from_embedded_json(page)
+    shopify_data = extract_shopify_product_json(url) if detect_platform(raw, url) == "Shopify" or "/products/" in urlparse(url).path else {}
     if embedded_data.get("image"):
         embedded_data["image"] = absolutize_url(str(embedded_data["image"]), url)
-    data = merge_missing(data, adapter_data, profile_data, generic_data, embedded_data)
+    data = merge_missing(data, adapter_data, profile_data, generic_data, embedded_data, shopify_data)
 
     title = first_css(page, GENERIC_SELECTORS["title"])
     data["title"] = data.get("title") or title
@@ -1175,9 +1289,10 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
     if bundle_widget:
         data["bundleWidget"] = bundle_widget
 
-    media = extract_product_media(page, url, data.get("image"))
+    media = unique((shopify_data.get("productMedia") or []) + extract_product_media(page, url, data.get("image")))
     if media:
-        data["productMedia"] = media
+        data["productMedia"] = media[:30]
+        data["image"] = media[0].get("url") or data.get("image")
 
     reviews = extract_product_reviews(page)
     reviews = enrich_reviews_from_counts(reviews, data.get("rating"), data.get("reviewsCount"))
