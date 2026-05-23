@@ -90,13 +90,13 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
               ))}
             </div>
 
-            <div className="p-8 overflow-auto flex-1 bg-[#fffaf6] text-[#24170f]">
-              <div className="max-w-7xl mx-auto">
+            <div className="p-4 sm:p-8 flex-1 bg-[#fffaf6] text-[#24170f] overflow-hidden flex flex-col">
+              <div className="w-full h-full flex flex-col">
                 
                 {activeTab === 'Overview' && (
-                  <div className="space-y-6">
-                    {/* Top Metrics Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+                    {/* Top Row: 3 Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
                       <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
                         <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Current Price</p>
                         <div className="flex items-end gap-2">
@@ -132,56 +132,52 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {/* Left Column: Visit History Chart */}
-                      <div className="lg:col-span-2">
-                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col">
-                          <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                              <TrendingUp className="w-5 h-5 text-[#ff690c]" />
-                              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Visit History</h3>
+                    {/* Main Content Row: Chart (Left) + Description/Info (Right) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[300px] overflow-hidden">
+                      {/* Left: Chart */}
+                      <div className="lg:col-span-2 bg-white rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col p-6">
+                        <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                          <div className="flex items-center gap-3">
+                            <TrendingUp className="w-5 h-5 text-[#ff690c]" />
+                            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Visit History</h3>
+                          </div>
+                        </div>
+                        <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-4 flex-1 flex flex-col overflow-hidden">
+                          {product.brandMetrics?.monthly_visits_history ? (
+                            <PriceChart data={product.brandMetrics.monthly_visits_history} />
+                          ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-[#8a7668] border border-[#f1ded1] border-dashed rounded-lg">
+                              <LineChart className="w-8 h-8 mb-2 opacity-50" />
+                              <span className="font-medium">Waiting for enough data points...</span>
                             </div>
-                          </div>
-                          
-                          <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-4 flex-1">
-                            {product.brandMetrics?.monthly_visits_history ? (
-                              <PriceChart data={product.brandMetrics.monthly_visits_history} />
-                            ) : (
-                              <div className="h-[280px] flex flex-col items-center justify-center text-[#8a7668] border border-[#f1ded1] border-dashed rounded-lg">
-                                <LineChart className="w-8 h-8 mb-2 opacity-50" />
-                                <span className="font-medium">Waiting for enough data points...</span>
-                              </div>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
 
-                      {/* Right Column: Description */}
-                      <div className="lg:col-span-1">
-                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col">
-                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-4">
+                      {/* Right: Description & Info */}
+                      <div className="lg:col-span-1 h-full flex flex-col gap-6 overflow-hidden">
+                        {/* Description */}
+                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-1 flex flex-col p-6 overflow-hidden">
+                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-3 flex-shrink-0">
                             <AlignLeft className="w-5 h-5 text-[#ff690c]" />
                             Description
                           </h3>
-                          <div className="text-[#5b4638] text-sm leading-relaxed whitespace-pre-wrap p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-auto max-h-[350px] custom-scrollbar">
+                          <div className="text-[#5b4638] text-sm leading-relaxed whitespace-pre-wrap p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-auto custom-scrollbar">
                             {product.description || "No description available for this product."}
                           </div>
                         </div>
-                      </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      <div className="lg:col-span-2">
-                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm h-full">
+                        {/* Product Info */}
+                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Product Info</h3>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center pb-3 border-b border-[#f1ded1]">
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]">
                               <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Tag className="w-4 h-4" /> Brand</span>
                               <span className="font-bold text-[#24170f]">{product.brand || "N/A"}</span>
                             </div>
-                            <div className="flex justify-between items-center pb-3 border-b border-[#f1ded1]">
-                              <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU/MPN</span>
-                              <span className="font-bold text-[#24170f] truncate max-w-[250px] text-right">{product.sku || "N/A"}</span>
+                            <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]">
+                              <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU</span>
+                              <span className="font-bold text-[#24170f] truncate max-w-[150px] text-right">{product.sku || "N/A"}</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Rating</span>
@@ -195,21 +191,6 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                               )}
                             </div>
                           </div>
-                        </div>
-                      </div>
-
-                      <div className="lg:col-span-1">
-                        <div className="bg-[#ff690c]/5 border border-[#ff690c]/20 p-5 rounded-2xl relative overflow-hidden group shadow-sm h-full flex flex-col justify-center">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-[#ff690c] rounded-lg">
-                              <Users className="w-4 h-4 text-white" />
-                            </div>
-                            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Target Audience</h3>
-                          </div>
-                          <p className="text-sm text-[#8a7668] mb-4">Discover the exact audience targeting this product in ads.</p>
-                          <button className="w-full py-2 bg-[#ff690c] text-white text-sm font-bold rounded-lg hover:bg-[#e55e0b] shadow-[0_0_15px_rgba(255,105,12,0.3)] transition-all">
-                            Unlock Analytics
-                          </button>
                         </div>
                       </div>
                     </div>
