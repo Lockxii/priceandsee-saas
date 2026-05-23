@@ -236,9 +236,18 @@ function normalizeBrandHistoryPayload(payload: unknown) {
   return monthlyVisitsHistory.length ? { monthly_visits_history: monthlyVisitsHistory } : null;
 }
 
-async function fetchBrandHistory(url: string, apiKey: string) {
-  const payload = await fetchBrandJson(url, apiKey);
-  return normalizeBrandHistoryPayload(payload);
+function historyPointCount(history: Record<string, unknown> | null) {
+  const points = history?.monthly_visits_history;
+  return Array.isArray(points) ? points.length : 0;
+}
+
+async function fetchBrandHistory(urls: string[], apiKey: string) {
+  const histories = await Promise.all(
+    urls.map(async (url) => normalizeBrandHistoryPayload(await fetchBrandJson(url, apiKey)))
+  );
+  return histories
+    .filter((history): history is NonNullable<typeof history> => Boolean(history))
+    .sort((a, b) => historyPointCount(b) - historyPointCount(a))[0] || null;
 }
 
 async function fetchFreshBrandMetrics(url: string, existing: unknown) {
@@ -247,11 +256,20 @@ async function fetchFreshBrandMetrics(url: string, existing: unknown) {
   try {
     const domain = new URL(url).hostname.replace(/^www\./, "");
     const encoded = encodeURIComponent(domain);
-    const history = await fetchBrandHistory(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/history`, apiKey);
+    const byUrlBase = `https://api.brandsearch.co/v1/brands/by-url/${encoded}`;
+    const history = await fetchBrandHistory([
+      `${byUrlBase}/history`,
+      `${byUrlBase}/traffic/history`,
+      `${byUrlBase}/traffic-history`,
+      `${byUrlBase}/visits-history`,
+      `${byUrlBase}/visit-history`,
+      `${byUrlBase}/metrics/history`,
+      `${byUrlBase}/historical`,
+    ], apiKey);
     const payloads = await Promise.all([
-      fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}`, apiKey),
-      fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/traffic`, apiKey),
-      fetchBrandJson(`https://api.brandsearch.co/v1/brands/by-url/${encoded}/competitors`, apiKey),
+      fetchBrandJson(byUrlBase, apiKey),
+      fetchBrandJson(`${byUrlBase}/traffic`, apiKey),
+      fetchBrandJson(`${byUrlBase}/competitors`, apiKey),
       fetchBrandJson(`https://api.brandsearch.co/v1/traffic/${encoded}`, apiKey),
     ]);
     return mergeJsonObjects(existing, ...payloads, history) || (isRecord(existing) ? existing : null);

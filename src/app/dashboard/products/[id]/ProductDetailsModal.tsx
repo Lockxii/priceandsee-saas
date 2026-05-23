@@ -638,31 +638,27 @@ function productMediaItems(product: ProductDetails): ProductMedia[] {
 function ProductPhotoCard({ product }: { product: ProductDetails }) {
   const media = productMediaItems(product);
   const primary = media[0];
+  const visibleThumbs = media.slice(0, 4);
+  const extraCount = Math.max(0, media.length - visibleThumbs.length);
   return (
-    <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[1.15] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[210px]">
+    <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.85] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[190px] max-h-[224px]">
       <div className="flex items-center justify-between gap-3 mb-3 flex-shrink-0">
         <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3"><Images className="w-5 h-5 text-[#ff690c]" />Product photo</h3>
         {media.length > 1 && <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-2.5 py-1">{media.length} imgs</span>}
       </div>
-      <div className="flex-1 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] overflow-hidden flex items-center justify-center p-3">
-        {primary ? (
-          <img src={previewAssetUrl(primary.url, `${product.title || "product"}-primary`)} alt={primary.alt || product.title || "Product"} className="h-full w-full object-contain drop-shadow-sm" />
-        ) : (
+      <div className="flex-1 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] overflow-hidden grid grid-cols-4 gap-2 p-2">
+        {visibleThumbs.length ? visibleThumbs.map((item, index) => (
+          <div key={`${item.url}-${index}`} className="relative rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
+            <img src={previewAssetUrl(item.url, `${product.title || "product"}-overview-${index + 1}`)} alt={item.alt || product.title || `Product ${index + 1}`} className="h-full w-full object-cover" />
+            {index === visibleThumbs.length - 1 && extraCount > 0 && <span className="absolute inset-0 bg-[#24170f]/55 text-white text-xs font-black flex items-center justify-center">+{extraCount}</span>}
+          </div>
+        )) : (
           <div className="text-center text-[#8a7668]">
             <Package className="w-9 h-9 mx-auto mb-2 text-[#ff690c] opacity-60" />
             <p className="text-sm font-bold text-[#24170f]">No product image</p>
           </div>
         )}
       </div>
-      {media.length > 1 && (
-        <div className="mt-3 grid grid-cols-4 gap-2 flex-shrink-0">
-          {media.slice(1, 5).map((item, index) => (
-            <div key={`${item.url}-${index}`} className="aspect-square rounded-lg border border-[#f1ded1] bg-[#fffaf6] overflow-hidden p-1">
-              <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 2}`)} alt={item.alt || `Product ${index + 2}`} className="h-full w-full object-contain" />
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -672,7 +668,8 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   const [focusedIndex, setFocusedIndex] = useState(0);
   const media = productMediaItems(product);
   const focusedMedia = media[Math.min(focusedIndex, Math.max(media.length - 1, 0))];
-  const hiddenMediaCount = Math.max(0, media.length - 8);
+  const visibleMedia = media.slice(0, 12);
+  const hiddenMediaCount = Math.max(0, media.length - visibleMedia.length);
   const reviews = product.productReviews || [];
   const reviewsCsv = reviewsToCsv(reviews);
 
@@ -715,17 +712,17 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
               </div>
             </div>
 
-            <div className="xl:col-span-2 grid grid-cols-2 gap-2 content-start overflow-hidden">
-              {media.slice(0, 8).map((item, index) => {
+            <div className="xl:col-span-2 grid grid-cols-3 gap-2 content-start overflow-hidden">
+              {visibleMedia.map((item, index) => {
                 const active = index === Math.min(focusedIndex, media.length - 1);
                 return (
-                  <button key={`${item.url}-${index}`} type="button" onClick={() => setFocusedIndex(index)} className={`rounded-xl border p-2 overflow-hidden text-left transition-all ${active ? "border-[#ff690c] bg-white shadow-[0_0_0_2px_rgba(255,105,12,0.12)]" : "border-[#f1ded1] bg-[#fffaf6] hover:border-[#ff690c]/70"}`}>
+                  <button key={`${item.url}-${index}`} type="button" onClick={() => setFocusedIndex(index)} className={`rounded-xl border p-1.5 overflow-hidden text-left transition-all ${active ? "border-[#ff690c] bg-white shadow-[0_0_0_2px_rgba(255,105,12,0.12)]" : "border-[#f1ded1] bg-[#fffaf6] hover:border-[#ff690c]/70"}`}>
                     <div className="aspect-square rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
-                      <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} alt={item.alt || `Product media ${index + 1}`} className="h-full w-full object-contain" />
+                      <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} alt={item.alt || `Product media ${index + 1}`} className="h-full w-full object-cover" />
                     </div>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-xs font-bold text-[#8a7668]">{item.source || item.type || "image"}</p>
-                      <span className="text-[11px] font-black text-[#ff690c]">Focus</span>
+                    <div className="mt-1 flex items-center justify-between gap-1">
+                      <p className="min-w-0 truncate text-[10px] font-bold text-[#8a7668]">{item.source || item.type || "image"}</p>
+                      <span className="text-[10px] font-black text-[#ff690c]">Focus</span>
                     </div>
                   </button>
                 );
@@ -1142,15 +1139,15 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                         )}
                       </div>
 
-                      <div className="lg:col-span-1 h-full flex flex-col gap-4 sm:gap-5 overflow-hidden">
+                      <div className="lg:col-span-1 h-full flex flex-col gap-3 sm:gap-4 overflow-hidden">
                         <ProductPhotoCard product={product} />
-                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.85] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[155px]">
+                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.65] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[128px] max-h-[166px]">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-3 flex-shrink-0"><AlignLeft className="w-5 h-5 text-[#ff690c]" />Description</h3>
-                          <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[5]">{product.description || "No description available for this product."}</p>
+                          <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[3]">{product.description || "No description available for this product."}</p>
                         </div>
-                        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0">
-                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Product Info</h3>
-                          <div className="space-y-3">
+                        <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0 overflow-hidden">
+                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3">Product Info</h3>
+                          <div className="space-y-2">
                             <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Tag className="w-4 h-4" /> Brand</span><span className="font-bold text-[#24170f]">{product.brand || "N/A"}</span></div>
                             <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU</span><span className="font-bold text-[#24170f] truncate max-w-[150px] text-right">{product.sku || "N/A"}</span></div>
                             <div className="flex justify-between items-center"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Rating</span>{product.rating ? <div className="flex items-center gap-2"><span className="font-bold text-[#ff690c]">{product.rating}</span><span className="text-xs text-[#8a7668]">({product.reviewsCount})</span></div> : <span className="text-[#a99485] text-sm font-medium">No rating</span>}</div>
