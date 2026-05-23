@@ -22,7 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen bg-[#fffaf6] flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-[#f1ded1] flex flex-col">
+      <aside className="w-[280px] bg-white border-r border-[#f1ded1] flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-[#f1ded1]">
           <Link href="/" className="font-bold text-xl text-[#ff690c]">PriceAndSee</Link>
         </div>
