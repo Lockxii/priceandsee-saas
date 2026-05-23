@@ -17,8 +17,25 @@ export function SettingsModalRenderer({ user, updateProfileAction }: { user: any
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 backdrop-blur-sm pt-4 sm:pt-8 px-2 sm:px-6">
-      <div className="bg-[#fffaf6] w-full sm:w-[98vw] max-w-[1600px] h-[96vh] rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-500 ease-out">
+    <div className="fixed inset-0 z-[90] flex flex-col items-center justify-end">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200" onClick={closeModal} />
+
+      {/* Top Hover Zone */}
+      <div 
+        className="peer group absolute top-0 inset-x-0 h-16 sm:h-20 z-10 flex items-start pt-4 justify-center cursor-pointer"
+        onClick={closeModal}
+      >
+        <div className="text-white/90 text-sm font-medium tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-md">
+          esc to close
+        </div>
+      </div>
+
+      {/* Modal */}
+      <div 
+        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-24px)] sm:h-[calc(100vh-48px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-8 py-5 border-b border-[#f1ded1] flex justify-between items-center bg-white sticky top-0 z-10">
           <h2 className="text-xl font-bold text-[#24170f]">Account Settings</h2>
           <button onClick={closeModal} className="text-[#8a7668] hover:text-[#24170f] transition-colors p-2 bg-[#fffaf6] rounded-full border border-[#f1ded1]">
