@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { LayoutDashboard, Link as LinkIcon, Settings, LogOut, Activity } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { GuidedTour } from "./GuidedTour";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -10,6 +12,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) {
     redirect("/login");
   }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { onboardingCompleted: true },
+  });
 
   return (
     <div className="min-h-screen bg-[#fffaf6] flex">
@@ -23,7 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <LayoutDashboard className="w-5 h-5" />
             <span className="font-medium">Overview</span>
           </Link>
-          <Link href="/dashboard/products" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
+          <Link href="/dashboard/products" data-tour="sidebar-products" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
             <LinkIcon className="w-5 h-5" />
             <span className="font-medium">Tracked URLs</span>
           </Link>
@@ -59,6 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </div>
       </main>
+      <GuidedTour show={!user?.onboardingCompleted} />
     </div>
   );
 }

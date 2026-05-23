@@ -61,7 +61,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <form onSubmit={handleAddProduct} className="flex gap-4">
+      <form onSubmit={handleAddProduct} data-tour="add-url-form" className="flex gap-4">
         <input
           type="url"
           required
@@ -120,6 +120,7 @@ export default function ProductsPage() {
                     type="button"
                     onClick={() => scrapeNow(p.id)}
                     disabled={scrapingId === p.id}
+                    data-tour="check-product"
                     className="px-4 py-2 bg-[#ff690c] text-white rounded-lg text-sm font-medium hover:bg-[#e55e0b] transition-colors disabled:opacity-60 flex items-center gap-2"
                   >
                     {scrapingId === p.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
