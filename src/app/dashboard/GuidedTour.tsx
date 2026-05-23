@@ -16,37 +16,37 @@ type TourStep = {
 
 const steps: TourStep[] = [
   {
-    title: "Bienvenue sur PriceAndSee",
-    body: "On va configurer ton espace en moins d’une minute : dashboard, URLs concurrentes, premier check et suivi automatique.",
+    title: "Welcome to PriceAndSee",
+    body: "Let’s set up your workspace in under a minute: dashboard, competitor URLs, your first check, and automated monitoring.",
     path: "/dashboard",
     placement: "center",
   },
   {
     selector: "[data-tour='dashboard-stats']",
-    title: "Ton cockpit de veille",
-    body: "Ici tu suis en un coup d’œil les URLs monitorées, les mouvements prix et les alertes actives.",
+    title: "Your monitoring cockpit",
+    body: "Track monitored URLs, price movements, and active alerts at a glance from this overview.",
     path: "/dashboard",
     placement: "bottom",
   },
   {
     selector: "[data-tour='sidebar-products']",
-    title: "Ajoute tes concurrents",
-    body: "La page Tracked URLs sert à coller les pages produits Shopify, Amazon ou boutiques concurrentes.",
+    title: "Add your competitors",
+    body: "The Tracked URLs page is where you paste Shopify, Amazon, or niche store product pages.",
     path: "/dashboard",
     placement: "right",
   },
   {
     selector: "[data-tour='add-url-form']",
-    title: "Colle une URL produit",
-    body: "Ajoute une URL concurrente. Elle sera stockée dans ton espace et prête à être vérifiée.",
+    title: "Paste a product URL",
+    body: "Add a competitor URL. It will be saved to your workspace and ready for monitoring.",
     path: "/dashboard/products",
     placement: "bottom",
   },
   {
     selector: "[data-tour='check-product']",
     fallbackSelector: "[data-tour='add-url-form']",
-    title: "Lance une première vérification",
-    body: "Le bouton Check déclenche l’extraction prix, stock, titre et promo. Si aucun produit n’existe encore, ajoute d’abord une URL.",
+    title: "Run the first check",
+    body: "The Check button extracts price, stock status, title, and promo signals. If you do not have a product yet, add a URL first.",
     path: "/dashboard/products",
     placement: "left",
   },
@@ -222,7 +222,7 @@ export function GuidedTour({ show }: { show: boolean }) {
           style={{ top: tooltip.top, left: tooltip.left, width: tooltip.width }}
         >
           <div className="absolute -right-14 -top-14 h-32 w-32 rounded-full bg-[#ff690c]/15 blur-2xl" />
-          <button type="button" onClick={complete} className="absolute right-4 top-4 rounded-full p-1.5 text-[#8a7668] hover:bg-[#fff2e8] hover:text-[#24170f]" aria-label="Fermer le tour">
+          <button type="button" onClick={complete} className="absolute right-4 top-4 rounded-full p-1.5 text-[#8a7668] hover:bg-[#fff2e8] hover:text-[#24170f]" aria-label="Close tour">
             <X className="h-4 w-4" />
           </button>
 
@@ -232,19 +232,19 @@ export function GuidedTour({ show }: { show: boolean }) {
                 <span key={dotIndex} className={`h-1.5 rounded-full transition-all ${dotIndex === index ? "w-7 bg-[#ff690c]" : "w-1.5 bg-[#f1ded1]"}`} />
               ))}
             </div>
-            <p className="text-xs font-[800] uppercase tracking-[0.18em] text-[#ff690c]">{index === 0 ? "Bienvenue" : `Étape ${index}/${steps.length - 1}`}</p>
+            <p className="text-xs font-[800] uppercase tracking-[0.18em] text-[#ff690c]">{index === 0 ? "Welcome" : `Step ${index}/${steps.length - 1}`}</p>
             <h3 className="mt-2 text-xl font-[800] tracking-tight text-[#24170f]">{step.title}</h3>
             <p className="mt-2 text-sm leading-relaxed text-[#6f5a4d]">{step.body}</p>
 
             <div className="mt-5 flex items-center justify-between gap-3">
               <button type="button" onClick={previous} disabled={index === 0} className="rounded-full px-4 py-2 text-sm font-bold text-[#6f5a4d] hover:bg-[#fff8f2] disabled:opacity-35">
-                Retour
+                Back
               </button>
               <button type="button" onClick={next} className="inline-flex items-center gap-2 rounded-full bg-[#ff690c] px-5 py-2.5 text-sm font-bold text-white shadow-[0_10px_28px_-12px_rgba(255,105,12,0.8)] hover:bg-[#e55e0b]">
                 {index === steps.length - 1 ? (
-                  <>Terminer <Check className="h-4 w-4" /></>
+                  <>Finish <Check className="h-4 w-4" /></>
                 ) : (
-                  <>Suivant <ArrowRight className="h-4 w-4" /></>
+                  <>Next <ArrowRight className="h-4 w-4" /></>
                 )}
               </button>
             </div>
