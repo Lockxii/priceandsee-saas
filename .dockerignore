@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.vercel
+.env
+*.log
+.DS_Store
+tsconfig.tsbuildinfo
+__pycache__
+*.pyc
+scraper/__pycache__
+scraper/venv
+scraper/.venv
+scraper/.pytest_cache
+scraper/.mypy_cache
+scraper/.ruff_cache
