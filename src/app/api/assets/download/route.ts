@@ -17,24 +17,33 @@ function extensionFor(contentType: string, pathname: string) {
   return "jpg";
 }
 
-export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+function parseAssetRequest(req: NextRequest) {
   const target = req.nextUrl.searchParams.get("url");
   const name = safeFilename(req.nextUrl.searchParams.get("name") || "product-image");
-  if (!target) return NextResponse.json({ error: "Missing url" }, { status: 400 });
+  const inline = req.nextUrl.searchParams.get("inline") === "1";
+  if (!target) return { error: NextResponse.json({ error: "Missing url" }, { status: 400 }) };
 
   let parsed: URL;
   try {
     parsed = new URL(target);
   } catch {
-    return NextResponse.json({ error: "Invalid url" }, { status: 400 });
+    return { error: NextResponse.json({ error: "Invalid url" }, { status: 400 }) };
   }
 
   if (!["http:", "https:"].includes(parsed.protocol)) {
-    return NextResponse.json({ error: "Unsupported protocol" }, { status: 400 });
+    return { error: NextResponse.json({ error: "Unsupported protocol" }, { status: 400 }) };
   }
+
+  return { parsed, name, inline };
+}
+
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const asset = parseAssetRequest(req);
+  if (asset.error) return asset.error;
+  const { parsed, name, inline } = asset;
 
   try {
     const response = await fetch(parsed.toString(), {
@@ -56,8 +65,8 @@ export async function GET(req: NextRequest) {
     return new NextResponse(body, {
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="${name}.${extension}"`,
-        "Cache-Control": "private, max-age=300",
+        "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${name}.${extension}"`,
+        "Cache-Control": inline ? "private, max-age=3600" : "private, max-age=300",
       },
     });
   } catch (error) {

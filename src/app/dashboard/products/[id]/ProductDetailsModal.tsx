@@ -499,8 +499,18 @@ function htmlToPlainText(markup: string) {
   return div.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
+function assetProxyUrl(url: string, name: string, inline = false) {
+  const params = new URLSearchParams({ url, name });
+  if (inline) params.set("inline", "1");
+  return `/api/assets/download?${params.toString()}`;
+}
+
 function downloadAssetUrl(url: string, name: string) {
-  return `/api/assets/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
+  return assetProxyUrl(url, name);
+}
+
+function previewAssetUrl(url: string, name: string) {
+  return assetProxyUrl(url, name, true);
 }
 
 function reviewsToCsv(reviews: ProductReview[]) {
@@ -529,8 +539,29 @@ function downloadTextFile(filename: string, content: string, type = "text/plain"
   URL.revokeObjectURL(url);
 }
 
-function productMediaItems(product: ProductDetails) {
-  return product.productMedia?.length ? product.productMedia : product.image ? [{ url: product.image, alt: product.title || "Product image", source: "primary", type: "image" }] : [];
+function absoluteAssetUrl(value: string, baseUrl: string) {
+  if (value.startsWith("//")) return `https:${value}`;
+  try {
+    return new URL(value).toString();
+  } catch {
+    try {
+      return new URL(value, baseUrl).toString();
+    } catch {
+      return value;
+    }
+  }
+}
+
+function productMediaItems(product: ProductDetails): ProductMedia[] {
+  const raw = product.productMedia?.length ? product.productMedia : product.image ? [{ url: product.image, alt: product.title || "Product image", source: "primary", type: "image" }] : [];
+  const seen = new Set<string>();
+  return raw
+    .map((item) => ({ ...item, url: absoluteAssetUrl(item.url, product.url) }))
+    .filter((item) => {
+      if (!item.url || seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    });
 }
 
 function ProductPhotoCard({ product }: { product: ProductDetails }) {
@@ -544,7 +575,7 @@ function ProductPhotoCard({ product }: { product: ProductDetails }) {
       </div>
       <div className="flex-1 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] overflow-hidden flex items-center justify-center p-3">
         {primary ? (
-          <img src={primary.url} alt={primary.alt || product.title || "Product"} className="h-full w-full object-contain drop-shadow-sm" />
+          <img src={previewAssetUrl(primary.url, `${product.title || "product"}-primary`)} alt={primary.alt || product.title || "Product"} className="h-full w-full object-contain drop-shadow-sm" />
         ) : (
           <div className="text-center text-[#8a7668]">
             <Package className="w-9 h-9 mx-auto mb-2 text-[#ff690c] opacity-60" />
@@ -556,7 +587,7 @@ function ProductPhotoCard({ product }: { product: ProductDetails }) {
         <div className="mt-3 grid grid-cols-4 gap-2 flex-shrink-0">
           {media.slice(1, 5).map((item, index) => (
             <div key={`${item.url}-${index}`} className="aspect-square rounded-lg border border-[#f1ded1] bg-[#fffaf6] overflow-hidden p-1">
-              <img src={item.url} alt={item.alt || `Product ${index + 2}`} className="h-full w-full object-contain" />
+              <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 2}`)} alt={item.alt || `Product ${index + 2}`} className="h-full w-full object-contain" />
             </div>
           ))}
         </div>
@@ -567,7 +598,10 @@ function ProductPhotoCard({ product }: { product: ProductDetails }) {
 
 function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   const [copiedReviews, setCopiedReviews] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const media = productMediaItems(product);
+  const focusedMedia = media[Math.min(focusedIndex, Math.max(media.length - 1, 0))];
+  const hiddenMediaCount = Math.max(0, media.length - 8);
   const reviews = product.productReviews || [];
   const reviewsCsv = reviewsToCsv(reviews);
 
@@ -589,20 +623,46 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
         </div>
 
         {media.length ? (
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 flex-1 min-h-0 content-start overflow-hidden">
-            {media.slice(0, 9).map((item, index) => (
-              <div key={`${item.url}-${index}`} className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-2 overflow-hidden">
-                <div className="aspect-square rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
-                  <img src={item.url} alt={item.alt || `Product media ${index + 1}`} className="h-full w-full object-contain" />
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-3 flex-1 min-h-0 overflow-hidden">
+            <div className="xl:col-span-3 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 overflow-hidden flex flex-col">
+              <button type="button" onClick={() => focusedMedia && window.open(previewAssetUrl(focusedMedia.url, `${product.title || "product"}-preview`), "_blank", "noopener,noreferrer")} className="group relative flex-1 min-h-0 rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center cursor-zoom-in">
+                {focusedMedia ? (
+                  <img src={previewAssetUrl(focusedMedia.url, `${product.title || "product"}-preview`)} alt={focusedMedia.alt || "Focused product media"} className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.025]" />
+                ) : null}
+                <span className="absolute left-3 top-3 rounded-full bg-white/90 border border-[#f1ded1] px-3 py-1 text-[11px] font-black text-[#24170f] shadow-sm">Click to open</span>
+              </button>
+              <div className="mt-3 flex items-center justify-between gap-3 flex-shrink-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[#24170f]">{focusedMedia?.alt || product.title || "Product image"}</p>
+                  <p className="truncate text-xs font-bold text-[#8a7668]">{focusedMedia?.source || focusedMedia?.type || "image"}</p>
                 </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="min-w-0 truncate text-xs font-bold text-[#8a7668]">{item.source || item.type || "image"}</p>
-                  <a href={downloadAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} className="inline-flex items-center gap-1 rounded-lg bg-[#24170f] px-2 py-1 text-[11px] font-black text-[#fffaf6] hover:bg-[#3a281d]">
-                    <Download className="w-3 h-3" />Download
+                {focusedMedia && (
+                  <a href={downloadAssetUrl(focusedMedia.url, `${product.title || "product"}-selected`)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#24170f] px-3 py-2 text-xs font-black text-[#fffaf6] hover:bg-[#3a281d]">
+                    <Download className="w-3.5 h-3.5" />Download
                   </a>
-                </div>
+                )}
               </div>
-            ))}
+            </div>
+
+            <div className="xl:col-span-2 grid grid-cols-2 gap-2 content-start overflow-hidden">
+              {media.slice(0, 8).map((item, index) => {
+                const active = index === Math.min(focusedIndex, media.length - 1);
+                return (
+                  <button key={`${item.url}-${index}`} type="button" onClick={() => setFocusedIndex(index)} className={`rounded-xl border p-2 overflow-hidden text-left transition-all ${active ? "border-[#ff690c] bg-white shadow-[0_0_0_2px_rgba(255,105,12,0.12)]" : "border-[#f1ded1] bg-[#fffaf6] hover:border-[#ff690c]/70"}`}>
+                    <div className="aspect-square rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
+                      <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} alt={item.alt || `Product media ${index + 1}`} className="h-full w-full object-contain" />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate text-xs font-bold text-[#8a7668]">{item.source || item.type || "image"}</p>
+                      <span className="text-[11px] font-black text-[#ff690c]">Focus</span>
+                    </div>
+                  </button>
+                );
+              })}
+              {hiddenMediaCount > 0 && (
+                <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 text-xs font-black text-[#8a7668] flex items-center justify-center">+{hiddenMediaCount} more</div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
@@ -937,7 +997,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
               <div className="relative z-10 flex items-center gap-4 sm:gap-6">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#fffaf6] border border-[#f1ded1] flex items-center justify-center p-2">
                   {product.image ? (
-                    <img src={product.image} alt={product.title || "Product"} className="w-full h-full object-contain rounded-xl" />
+                    <img src={previewAssetUrl(absoluteAssetUrl(product.image, product.url), `${product.title || "product"}-header`)} alt={product.title || "Product"} className="w-full h-full object-contain rounded-xl" />
                   ) : (
                     <Package className="w-8 h-8 text-[#ff690c]" />
                   )}
