@@ -36,6 +36,14 @@ model Product {
   id              String         @id @default(cuid())
   url             String
   title           String?
+  description     String?
+  image           String?
+  brand           String?
+  sku             String?
+  rating          Float?
+  reviewsCount    Int?
+  currency        String?
+  bundlePrices    Json?
   currentPrice    Float?
   stockStatus     String?        // e.g., "In Stock", "Out of Stock"
   promoText       String?

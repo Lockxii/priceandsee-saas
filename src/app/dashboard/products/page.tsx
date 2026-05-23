@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, ExternalLink, RefreshCw, Radar } from "lucide-react";
 import Link from "next/link";
+import { ProductDetailsModal } from "./[id]/ProductDetailsModal";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -10,6 +11,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [scrapingId, setScrapingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -126,15 +128,26 @@ export default function ProductsPage() {
                     {scrapingId === p.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
                     Check
                   </button>
-                  <Link href={`/dashboard/products/${p.id}`} className="px-4 py-2 border border-[#f1ded1] rounded-lg text-sm font-medium hover:bg-[#fffaf6] transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductId(p.id)}
+                    className="px-4 py-2 border border-[#f1ded1] rounded-lg text-sm font-medium hover:bg-[#fffaf6] transition-colors"
+                  >
                     Details
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))
           )}
         </div>
       </div>
+
+      {selectedProductId && (
+        <ProductDetailsModal 
+          productId={selectedProductId} 
+          onClose={() => setSelectedProductId(null)} 
+        />
+      )}
     </div>
   );
 }

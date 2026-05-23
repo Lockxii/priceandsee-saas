@@ -6,6 +6,14 @@ type ExtractedProduct = {
   price?: number;
   stockStatus?: string;
   promoText?: string;
+  description?: string;
+  image?: string;
+  brand?: string;
+  sku?: string;
+  rating?: number;
+  reviewsCount?: number;
+  currency?: string;
+  bundlePrices?: any;
 };
 
 type ScrapeProductOptions = {
@@ -70,14 +78,30 @@ function extractJsonLd(html: string): ExtractedProduct {
       const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
       const availability = String(offers?.availability || "").toLowerCase();
 
+      let bundlePrices = undefined;
+      if (Array.isArray(product.offers) && product.offers.length > 1) {
+        bundlePrices = product.offers.map((o: any) => ({
+          name: o.name || o.sku || "Variant",
+          price: parsePrice(o.price)
+        })).filter((o: any) => o.price !== undefined);
+      }
+
       return {
         title: product.name ? decodeHtml(String(product.name)) : undefined,
         price: parsePrice(offers?.price || offers?.lowPrice || offers?.highPrice),
+        currency: offers?.priceCurrency,
         stockStatus: availability.includes("instock")
           ? "In Stock"
-          : availability.includes("outofstock")
+          : availability.includes("outofstock") || availability.includes("soldout")
             ? "Out of Stock"
             : undefined,
+        description: product.description ? decodeHtml(String(product.description)) : undefined,
+        sku: product.sku || product.mpn,
+        image: Array.isArray(product.image) ? product.image[0] : (typeof product.image === "string" ? product.image : undefined),
+        brand: product.brand?.name || (typeof product.brand === "string" ? product.brand : undefined),
+        rating: product.aggregateRating?.ratingValue ? Number(product.aggregateRating.ratingValue) : undefined,
+        reviewsCount: product.aggregateRating?.reviewCount ? Number(product.aggregateRating.reviewCount) : undefined,
+        bundlePrices: bundlePrices?.length ? bundlePrices : undefined
       };
     } catch {
       // Ignore malformed JSON-LD and continue with other extraction strategies.
@@ -118,6 +142,14 @@ export function extractProductData(html: string): ExtractedProduct {
     price: jsonLd.price ?? parsePrice(metaPrice),
     stockStatus,
     promoText: promoText?.slice(0, 240),
+    description: jsonLd.description || promoText,
+    image: jsonLd.image || matchContent(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i),
+    brand: jsonLd.brand || matchContent(html, /<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i),
+    sku: jsonLd.sku,
+    rating: jsonLd.rating,
+    reviewsCount: jsonLd.reviewsCount,
+    currency: jsonLd.currency || matchContent(html, /<meta[^>]+property=["']product:price:currency["'][^>]+content=["']([^"']+)["']/i),
+    bundlePrices: jsonLd.bundlePrices
   };
 }
 
@@ -210,6 +242,14 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
           currentPrice: extracted.price ?? product.currentPrice,
           stockStatus: extracted.stockStatus || product.stockStatus,
           promoText: extracted.promoText || product.promoText,
+          description: extracted.description || product.description,
+          image: extracted.image || product.image,
+          brand: extracted.brand || product.brand,
+          sku: extracted.sku || product.sku,
+          rating: extracted.rating || product.rating,
+          reviewsCount: extracted.reviewsCount || product.reviewsCount,
+          currency: extracted.currency || product.currency,
+          bundlePrices: extracted.bundlePrices || product.bundlePrices || undefined,
           lastCheckedAt: new Date(),
           lastChangedAt: changed ? new Date() : product.lastChangedAt,
           lastError: null,
