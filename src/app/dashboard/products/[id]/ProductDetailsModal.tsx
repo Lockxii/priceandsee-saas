@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, LineChart, Package, Tag, Hash, Star, AlignLeft, TrendingUp, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2 } from "lucide-react";
 import PriceChart from "./PriceChart";
+import VisitHistoryChart, { type TrafficCountry } from "./VisitHistoryChart";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -25,7 +26,10 @@ type BrandMetrics = JsonRecord & {
   monthlyVisitsHistory?: BrandMetricPoint[];
   visits_history?: BrandMetricPoint[];
   traffic_history?: BrandMetricPoint[];
-  technologies?: string[];
+  visitCountries?: TrafficCountry[];
+  traffic_countries?: TrafficCountry[];
+  top_countries?: TrafficCountry[];
+  countries?: TrafficCountry[];
 };
 
 type BundlePrice = {
@@ -136,16 +140,51 @@ function normalizeVisitHistory(metrics?: BrandMetrics | null) {
           visits,
         };
       })
-      .filter((item): item is { month: string; visits: number } => item !== null);
+      .filter((item): item is { month: string; visits: number } => item !== null)
+      .slice(-12);
     if (points.length) return points;
   }
 
   const currentVisits = getMonthlyVisits(metrics);
   if (!currentVisits) return undefined;
-  return Array.from({ length: 6 }, (_, index) => {
-    const factor = 0.78 + index * 0.045;
-    return { month: MONTH_NAMES[(new Date().getMonth() - 5 + index + 12) % 12], visits: Math.round(currentVisits * factor) };
-  });
+
+  const shape = [1.18, 1.4, 1.34, 1.04, 0.82, 0.88, 1.04, 0.94, 0.82, 0.98, 1.18, 1];
+  const currentMonth = new Date().getMonth();
+
+  return shape.map((factor, index) => ({
+    month: MONTH_NAMES[(currentMonth - 11 + index + 12) % 12],
+    visits: Math.max(0, Math.round(currentVisits * factor)),
+  }));
+}
+
+function normalizeTrafficCountries(metrics?: BrandMetrics | null) {
+  if (!metrics) return [] as TrafficCountry[];
+  const candidates = [metrics.visitCountries, metrics.traffic_countries, metrics.top_countries, metrics.countries, metrics.country_breakdown, metrics.traffic_by_country];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const countries = candidate
+      .map((item): TrafficCountry | null => {
+        if (!isRecord(item)) return null;
+        const label = asString(item.label) || asString(item.country) || asString(item.name) || asString(item.code);
+        const share = readNumberFromKeys(item, ["share", "percent", "percentage", "value", "traffic_share"]);
+        if (!label || share === undefined) return null;
+        const code = asString(item.code);
+        const flag = asString(item.flag);
+        return {
+          label,
+          share: share <= 1 ? share * 100 : share,
+          ...(code ? { code } : {}),
+          ...(flag ? { flag } : {}),
+        };
+      })
+      .filter((item): item is TrafficCountry => item !== null)
+      .slice(0, 4);
+
+    if (countries.length) return countries;
+  }
+
+  return [] as TrafficCountry[];
 }
 
 function normalizeCompetitors(metrics?: BrandMetrics | null) {
@@ -223,6 +262,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
 
     return {
       visitHistory: normalizeVisitHistory(metrics),
+      visitCountries: normalizeTrafficCountries(metrics),
       technologies: normalizeTechnologies(metrics),
       competitors: fallbackCompetitors,
       competitorChart,
@@ -324,18 +364,21 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 flex-1 min-h-0 overflow-hidden">
-                      <div className="lg:col-span-2 bg-white rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col p-4 sm:p-5">
-                        <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                          <div className="flex items-center gap-3"><TrendingUp className="w-5 h-5 text-[#ff690c]" /><h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Visit History</h3></div>
-                          <span className="text-xs font-semibold text-[#8a7668]">{derived.visits ? `${formatCompact(derived.visits)} / mo` : "BrandSearch / estimate"}</span>
-                        </div>
-                        <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-3 sm:p-4 flex-1 flex flex-col overflow-hidden min-h-[220px]">
-                          {derived.visitHistory ? (
-                            <PriceChart data={derived.visitHistory} valueKey="visits" dateKey="month" stroke="#ff690c" valuePrefix="" heightClassName="h-full min-h-[260px]" valueFormatter={(value) => formatCompact(value)} />
-                          ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-[#8a7668] border border-[#f1ded1] border-dashed rounded-lg"><LineChart className="w-8 h-8 mb-2 opacity-50" /><span className="font-medium">Waiting for BrandSearch traffic data...</span></div>
-                          )}
-                        </div>
+                      <div className="lg:col-span-2 h-full min-h-0">
+                        {derived.visitHistory ? (
+                          <VisitHistoryChart
+                            data={derived.visitHistory}
+                            totalVisits={derived.visits}
+                            countries={derived.visitCountries}
+                            estimated={!product.brandMetrics?.monthly_visits_history && !product.brandMetrics?.monthlyVisitsHistory && !product.brandMetrics?.visits_history && !product.brandMetrics?.traffic_history}
+                            className="h-full min-h-[330px]"
+                          />
+                        ) : (
+                          <div className="flex h-full min-h-[330px] flex-col items-center justify-center rounded-2xl border border-dashed border-[#f1ded1] bg-white text-[#8a7668] shadow-sm">
+                            <BarChart3 className="mb-2 h-8 w-8 opacity-50" />
+                            <span className="font-medium">Waiting for BrandSearch traffic data...</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="lg:col-span-1 h-full flex flex-col gap-4 sm:gap-5 overflow-hidden">
