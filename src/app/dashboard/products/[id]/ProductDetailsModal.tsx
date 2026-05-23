@@ -1,18 +1,61 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ExternalLink, Bell, Settings2, LineChart, Package, Tag, Hash, Star, AlignLeft, Lock, ArrowUpRight, Activity, TrendingUp, Users } from "lucide-react";
+import { ExternalLink, LineChart, Package, Tag, Hash, Star, AlignLeft, Lock, TrendingUp } from "lucide-react";
 import PriceChart from "./PriceChart";
 
+type BrandMetricPoint = {
+  createdAt?: string | number | Date;
+  price?: number;
+  [key: string]: unknown;
+};
+
+type BrandMetrics = {
+  niche?: string;
+  target_persona?: string;
+  monthly_visits_history?: BrandMetricPoint[];
+  technologies?: string[];
+  [key: string]: unknown;
+};
+
+type BundlePrice = {
+  name: string;
+  price: number | string;
+};
+
+type ScrapingJob = {
+  id: string;
+  createdAt: string;
+  status: string;
+};
+
+type ProductDetails = {
+  title?: string | null;
+  url: string;
+  image?: string | null;
+  currentPrice?: number | null;
+  currency?: string | null;
+  stockStatus?: string | null;
+  brandMetrics?: BrandMetrics | null;
+  description?: string | null;
+  brand?: string | null;
+  sku?: string | null;
+  rating?: number | null;
+  reviewsCount?: number | null;
+  bundlePrices?: BundlePrice[] | null;
+  scrapingJobs?: ScrapingJob[];
+  error?: string;
+};
+
 export function ProductDetailsModal({ productId, onClose }: { productId: string, onClose: () => void }) {
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Overview");
 
   useEffect(() => {
     fetch(`/api/products/${productId}`)
       .then(res => res.json())
-      .then(data => {
+      .then((data: ProductDetails) => {
         setProduct(data);
         setLoading(false);
       });
@@ -39,7 +82,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
 
       {/* Modal */}
       <div 
-        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-24px)] sm:h-[calc(100vh-48px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
+        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-12px)] sm:h-[calc(100vh-28px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -55,20 +98,20 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
         ) : (
           <>
             {/* Header Area */}
-            <div className="bg-white p-8 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-[#f1ded1]">
+            <div className="bg-white px-5 py-4 sm:px-8 sm:py-5 flex flex-col justify-end relative overflow-hidden flex-shrink-0 border-b border-[#f1ded1]">
               <div className="absolute top-0 right-0 p-8 opacity-5">
                 <Package className="w-64 h-64 text-[#ff690c]" />
               </div>
-              <div className="relative z-10 flex items-center gap-6">
-                <div className="w-20 h-20 rounded-2xl bg-[#fffaf6] border border-[#f1ded1] flex items-center justify-center p-2">
+              <div className="relative z-10 flex items-center gap-4 sm:gap-6">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#fffaf6] border border-[#f1ded1] flex items-center justify-center p-2">
                   {product.image ? (
-                    <img src={product.image} alt={product.title} className="w-full h-full object-contain rounded-xl" />
+                    <img src={product.image} alt={product.title || "Product"} className="w-full h-full object-contain rounded-xl" />
                   ) : (
                     <Package className="w-8 h-8 text-[#ff690c]" />
                   )}
                 </div>
-                <div>
-                  <h2 className="text-3xl font-black text-[#24170f] tracking-tight leading-tight max-w-2xl truncate">{product.title || "Product Details"}</h2>
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-3xl font-black text-[#24170f] tracking-tight leading-tight max-w-2xl truncate">{product.title || "Product Details"}</h2>
                   <a href={product.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[#8a7668] hover:text-[#ff690c] transition-colors text-sm font-medium mt-2 w-max bg-[#fffaf6] border border-[#f1ded1] px-3 py-1 rounded-full">
                     <ExternalLink className="w-4 h-4" />
                     Visit Source Website
@@ -78,36 +121,36 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
             </div>
 
             {/* Navigation Tabs */}
-            <div className="bg-[#fffaf6] px-8 flex gap-8 border-b border-[#f1ded1] flex-shrink-0">
+            <div className="bg-[#fffaf6] px-5 sm:px-8 flex gap-4 sm:gap-8 border-b border-[#f1ded1] flex-shrink-0">
               {['Overview', 'Variants', 'Competitors', 'Activity'].map((tab) => (
                 <button 
                   key={tab} 
                   onClick={() => setActiveTab(tab)}
-                  className={`py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-[#ff690c] text-[#ff690c]' : 'border-transparent text-[#8a7668] hover:text-[#24170f]'}`}
+                  className={`py-3 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-[#ff690c] text-[#ff690c]' : 'border-transparent text-[#8a7668] hover:text-[#24170f]'}`}
                 >
                   {tab}
                 </button>
               ))}
             </div>
 
-            <div className="p-4 sm:p-8 flex-1 bg-[#fffaf6] text-[#24170f] overflow-hidden flex flex-col">
+            <div className="p-4 sm:p-6 flex-1 bg-[#fffaf6] text-[#24170f] overflow-hidden flex flex-col">
               <div className="w-full h-full flex flex-col">
                 
                 {activeTab === 'Overview' && (
-                  <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+                  <div className="flex-1 flex flex-col gap-4 sm:gap-5 overflow-hidden">
                     {/* Top Row: 3 Metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
-                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 flex-shrink-0">
+                      <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
                         <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Current Price</p>
                         <div className="flex items-end gap-2">
-                          <p className="text-4xl font-black text-[#24170f]">
+                          <p className="text-3xl font-black text-[#24170f]">
                             {product.currentPrice ? `${product.currentPrice}` : "—"}
                           </p>
                           <p className="text-xl font-bold text-[#ff690c] mb-1">{product.currency || '€'}</p>
                         </div>
                       </div>
                       
-                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
+                      <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
                         <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Stock Status</p>
                         <div>
                           {product.stockStatus ? (
@@ -121,7 +164,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                         </div>
                       </div>
 
-                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
+                      <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
                         <div className="flex justify-between items-start mb-2">
                           <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider">Niche / Category</p>
                         </div>
@@ -133,16 +176,16 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                     </div>
 
                     {/* Main Content Row: Chart (Left) + Description/Info (Right) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[300px] overflow-hidden">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 flex-1 min-h-0 overflow-hidden">
                       {/* Left: Chart */}
-                      <div className="lg:col-span-2 bg-white rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col p-6">
+                      <div className="lg:col-span-2 bg-white rounded-2xl border border-[#f1ded1] shadow-sm h-full flex flex-col p-4 sm:p-5">
                         <div className="flex items-center justify-between mb-4 flex-shrink-0">
                           <div className="flex items-center gap-3">
                             <TrendingUp className="w-5 h-5 text-[#ff690c]" />
                             <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider">Visit History</h3>
                           </div>
                         </div>
-                        <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-4 flex-1 flex flex-col overflow-hidden">
+                        <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-3 sm:p-4 flex-1 flex flex-col overflow-hidden min-h-[220px]">
                           {product.brandMetrics?.monthly_visits_history ? (
                             <PriceChart data={product.brandMetrics.monthly_visits_history} />
                           ) : (
@@ -155,20 +198,20 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                       </div>
 
                       {/* Right: Description & Info */}
-                      <div className="lg:col-span-1 h-full flex flex-col gap-6 overflow-hidden">
+                      <div className="lg:col-span-1 h-full flex flex-col gap-4 sm:gap-5 overflow-hidden">
                         {/* Description */}
-                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-1 flex flex-col p-6 overflow-hidden">
+                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-1 flex flex-col p-4 sm:p-5 overflow-hidden">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-3 flex-shrink-0">
                             <AlignLeft className="w-5 h-5 text-[#ff690c]" />
                             Description
                           </h3>
-                          <div className="text-[#5b4638] text-sm leading-relaxed whitespace-pre-wrap p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-auto custom-scrollbar">
+                          <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[8]">
                             {product.description || "No description available for this product."}
-                          </div>
+                          </p>
                         </div>
 
                         {/* Product Info */}
-                        <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0">
+                        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0">
                           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Product Info</h3>
                           <div className="space-y-3">
                             <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]">
@@ -198,11 +241,11 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                 )}
 
                 {activeTab === 'Variants' && (
-                  <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                  <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden">
                     <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-6">Variants & Bundles</h3>
                     {product.bundlePrices && product.bundlePrices.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {product.bundlePrices.map((bundle: any, idx: number) => (
+                        {product.bundlePrices.map((bundle: BundlePrice, idx: number) => (
                           <div key={idx} className="flex items-center justify-between p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
                             <span className="font-bold text-[#5b4638]">{bundle.name}</span>
                             <span className="font-black text-[#24170f] bg-white px-3 py-1 rounded border border-[#f1ded1] shadow-sm">{bundle.price} {product.currency || '€'}</span>
@@ -219,8 +262,8 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
 
                 {activeTab === 'Competitors' && (
                   <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden">
                         <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-4">Competitor Stack</h3>
                         <p className="text-sm text-[#8a7668] mb-4">Technologies used by this brand.</p>
                         <div className="flex flex-wrap gap-2">
@@ -234,7 +277,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                         </div>
                       </div>
 
-                      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden group">
                         <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Lock className="w-5 h-5 text-[#ff690c]" />
                           <button className="px-4 py-1.5 bg-[#ff690c] text-white text-xs font-bold rounded-lg shadow-sm">Upgrade to Unlock</button>
@@ -249,7 +292,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                         <p className="text-4xl font-black text-[#24170f]/20 blur-[4px]">14 Stores</p>
                       </div>
                       
-                      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden group">
+                      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden group">
                         <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Lock className="w-5 h-5 text-[#ff690c]" />
                           <button className="px-4 py-1.5 bg-[#ff690c] text-white text-xs font-bold rounded-lg shadow-sm">Upgrade to Unlock</button>
@@ -268,10 +311,10 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                 )}
 
                 {activeTab === 'Activity' && (
-                  <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
+                  <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden">
                     <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-6">Scraping History</h3>
-                    <div className="space-y-3 max-h-[500px] overflow-auto pr-2 custom-scrollbar">
-                      {product.scrapingJobs?.length > 0 ? product.scrapingJobs.map((job: any) => (
+                    <div className="space-y-3 pr-1">
+                       {(product.scrapingJobs?.length || 0) > 0 ? product.scrapingJobs!.map((job: ScrapingJob) => (
                         <div key={job.id} className="px-5 py-4 flex items-center justify-between bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
                           <p className="text-sm font-semibold text-[#5b4638]">
                             {new Date(job.createdAt).toLocaleDateString()} at {new Date(job.createdAt).toLocaleTimeString()}

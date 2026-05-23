@@ -1,9 +1,36 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { effectiveUserLimits, nextMonthlyResetDate } from "@/lib/plans";
 import { execFile } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(execFile);
+
+type JsonRecord = Record<string, unknown>;
+
+type JsonLdOffer = JsonRecord & {
+  price?: string | number | null;
+  lowPrice?: string | number | null;
+  highPrice?: string | number | null;
+  availability?: string;
+  priceCurrency?: string;
+};
+
+type JsonLdProduct = JsonRecord & {
+  name?: string;
+  offers?: JsonLdOffer | JsonLdOffer[];
+  description?: string;
+  sku?: string;
+  mpn?: string;
+  image?: string | string[];
+  brand?: string | { name?: string };
+  aggregateRating?: { ratingValue?: string | number; reviewCount?: string | number };
+};
+
+type BundlePrice = {
+  name: string;
+  price: number;
+};
 
 type ExtractedProduct = {
   title?: string;
@@ -17,7 +44,9 @@ type ExtractedProduct = {
   rating?: number;
   reviewsCount?: number;
   currency?: string;
-  bundlePrices?: any;
+  bundlePrices?: BundlePrice[];
+  brandSignals?: JsonRecord;
+  scrapedAt?: string;
 };
 
 type ScrapeProductOptions = {
@@ -55,7 +84,9 @@ function matchContent(html: string, pattern: RegExp) {
   return match?.[1] ? decodeHtml(match[1]) : undefined;
 }
 
-function parsePrice(value?: string | null) {
+function parsePrice(value?: string | number | null) {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
   if (!value) return undefined;
   const normalized = value
     .replace(/\s/g, "")
@@ -71,27 +102,31 @@ function extractJsonLd(html: string): ExtractedProduct {
   for (const script of scripts) {
     try {
       const raw = decodeHtml(script[1]);
-      const parsed = JSON.parse(raw);
-      const nodes = Array.isArray(parsed) ? parsed : [parsed, ...(parsed?.["@graph"] || [])];
-      const product = nodes.find((node: any) => {
+      const parsed = JSON.parse(raw) as JsonRecord | JsonRecord[];
+      const parsedGraph = !Array.isArray(parsed) && Array.isArray(parsed["@graph"]) ? parsed["@graph"] as JsonRecord[] : [];
+      const nodes = Array.isArray(parsed) ? parsed : [parsed, ...parsedGraph];
+      const product = nodes.find((node) => {
         const type = node?.["@type"];
         return type === "Product" || (Array.isArray(type) && type.includes("Product"));
       });
 
       if (!product) continue;
-      const offers = Array.isArray(product.offers) ? product.offers[0] : product.offers;
+      const productData = product as JsonLdProduct;
+      const offers = Array.isArray(productData.offers) ? productData.offers[0] : productData.offers;
       const availability = String(offers?.availability || "").toLowerCase();
 
-      let bundlePrices = undefined;
-      if (Array.isArray(product.offers) && product.offers.length > 1) {
-        bundlePrices = product.offers.map((o: any) => ({
-          name: o.name || o.sku || "Variant",
-          price: parsePrice(o.price)
-        })).filter((o: any) => o.price !== undefined);
+      let bundlePrices: BundlePrice[] | undefined;
+      if (Array.isArray(productData.offers) && productData.offers.length > 1) {
+        bundlePrices = productData.offers
+          .map((o) => ({
+            name: String(o.name || o.sku || "Variant"),
+            price: parsePrice(o.price),
+          }))
+          .filter((o): o is BundlePrice => o.price !== undefined);
       }
 
       return {
-        title: product.name ? decodeHtml(String(product.name)) : undefined,
+        title: productData.name ? decodeHtml(String(productData.name)) : undefined,
         price: parsePrice(offers?.price || offers?.lowPrice || offers?.highPrice),
         currency: offers?.priceCurrency,
         stockStatus: availability.includes("instock")
@@ -99,12 +134,12 @@ function extractJsonLd(html: string): ExtractedProduct {
           : availability.includes("outofstock") || availability.includes("soldout")
             ? "Out of Stock"
             : undefined,
-        description: product.description ? decodeHtml(String(product.description)) : undefined,
-        sku: product.sku || product.mpn,
-        image: Array.isArray(product.image) ? product.image[0] : (typeof product.image === "string" ? product.image : undefined),
-        brand: product.brand?.name || (typeof product.brand === "string" ? product.brand : undefined),
-        rating: product.aggregateRating?.ratingValue ? Number(product.aggregateRating.ratingValue) : undefined,
-        reviewsCount: product.aggregateRating?.reviewCount ? Number(product.aggregateRating.reviewCount) : undefined,
+        description: productData.description ? decodeHtml(String(productData.description)) : undefined,
+        sku: productData.sku || productData.mpn,
+        image: Array.isArray(productData.image) ? productData.image[0] : (typeof productData.image === "string" ? productData.image : undefined),
+        brand: typeof productData.brand === "object" ? productData.brand?.name : productData.brand,
+        rating: productData.aggregateRating?.ratingValue ? Number(productData.aggregateRating.ratingValue) : undefined,
+        reviewsCount: productData.aggregateRating?.reviewCount ? Number(productData.aggregateRating.reviewCount) : undefined,
         bundlePrices: bundlePrices?.length ? bundlePrices : undefined
       };
     } catch {
@@ -157,6 +192,48 @@ export function extractProductData(html: string): ExtractedProduct {
   };
 }
 
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function asBundlePrices(value: unknown): BundlePrice[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const bundles = value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as JsonRecord;
+      const price = parsePrice(record.price as string | number | null | undefined);
+      return price === undefined ? null : { name: asString(record.name) || "Variant", price };
+    })
+    .filter((item): item is BundlePrice => item !== null);
+  return bundles.length ? bundles : undefined;
+}
+
+function normalizeScraperData(data: JsonRecord): ExtractedProduct {
+  if (!data || typeof data !== "object") return {};
+
+  const price = typeof data.price === "number" ? data.price : parsePrice(data.price as string | number | null | undefined);
+  const rating = data.rating !== undefined ? Number(data.rating) : undefined;
+  const reviewsCount = data.reviewsCount ?? data.reviews_count;
+
+  return {
+    title: asString(data.title),
+    price,
+    stockStatus: asString(data.stockStatus) || asString(data.stock_status),
+    promoText: asString(data.promoText) || asString(data.promo_text),
+    description: asString(data.description),
+    image: asString(data.image),
+    brand: asString(data.brand),
+    sku: asString(data.sku) || asString(data.mpn),
+    rating: Number.isFinite(rating) ? rating : undefined,
+    reviewsCount: reviewsCount !== undefined && Number.isFinite(Number(reviewsCount)) ? Number(reviewsCount) : undefined,
+    currency: asString(data.currency),
+    bundlePrices: asBundlePrices(data.bundlePrices || data.bundle_prices),
+    brandSignals: typeof data.brandSignals === "object" && data.brandSignals ? data.brandSignals as JsonRecord : (typeof data.brand_signals === "object" && data.brand_signals ? data.brand_signals as JsonRecord : undefined),
+    scrapedAt: asString(data.scrapedAt) || asString(data.scraped_at),
+  };
+}
+
 async function runPythonScraper(url: string): Promise<ExtractedProduct | null> {
   try {
     const scraperApiUrl = process.env.SCRAPER_API_URL;
@@ -169,23 +246,30 @@ async function runPythonScraper(url: string): Promise<ExtractedProduct | null> {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${scraperApiKey}`
         },
-        body: JSON.stringify({ url }),
-        signal: AbortSignal.timeout(30000)
+        body: JSON.stringify({
+          url,
+          mode: process.env.SCRAPER_MODE || "auto",
+          timeout_ms: Number(process.env.SCRAPER_TIMEOUT_MS || 45000),
+          wait_ms: Number(process.env.SCRAPER_WAIT_MS || 1200),
+        }),
+        signal: AbortSignal.timeout(Number(process.env.SCRAPER_REQUEST_TIMEOUT_MS || 60000))
       });
-      
-      if (res.ok) {
-        const result = await res.json();
-        if (result.success && result.data) {
-          return result.data;
-        }
+
+      const result = await res.json().catch(() => null);
+      if (res.ok && result?.success && result.data) {
+        return normalizeScraperData(result.data);
       }
+
+      const detail = typeof result?.detail === "string" ? result.detail : result?.detail?.message || result?.error;
+      throw new Error(detail || `Scraper API returned HTTP ${res.status}`);
     } else {
-      // Fallback for local development or VPS where python3 is available
-      const { stdout } = await execAsync("python3", ["scraper/run_scraper.py", url], { timeout: 30000 });
+      // Fallback for local development or VPS where python3 is available.
+      const { stdout } = await execAsync("python3", ["scraper/run_scraper.py", url, process.env.SCRAPER_MODE || "auto"], { timeout: 60000 });
       const result = JSON.parse(stdout);
       if (result.success && result.data) {
-        return result.data;
+        return normalizeScraperData(result.data);
       }
+      throw new Error(result.error || "Local scraper failed");
     }
   } catch (e) {
     console.error("Python scraper error:", e);
@@ -193,20 +277,23 @@ async function runPythonScraper(url: string): Promise<ExtractedProduct | null> {
   return null;
 }
 
-async function fetchBrandMetrics(url: string) {
+async function fetchBrandMetrics(url: string, scrapedSignals?: JsonRecord) {
+  const apiKey = process.env.BRANDSEARCH_API_KEY;
+  if (!apiKey) return scrapedSignals || null;
+
   try {
     const domain = new URL(url).hostname.replace(/^www\./, '');
     const res = await fetch(`https://api.brandsearch.co/v1/brands/by-url/${domain}`, {
-      headers: { "X-API-Key": "bsk_PHjR20lqczGonyi46i7OkSSuLbyJq9Scv2IkpfU_liU" },
+      headers: { "X-API-Key": apiKey },
       signal: AbortSignal.timeout(10000)
     });
     if (res.ok) {
-      return await res.json();
+      return { ...(scrapedSignals || {}), ...(await res.json()) };
     }
   } catch (e) {
     console.error("Brandsearch API error:", e);
   }
-  return null;
+  return scrapedSignals || null;
 }
 
 async function fetchHtml(url: string) {
@@ -233,6 +320,25 @@ async function fetchHtml(url: string) {
   }
 
   return html;
+}
+
+function toPrismaJson(value: unknown): Prisma.InputJsonValue | undefined {
+  if (value === undefined || value === null) return undefined;
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeBrandMetrics(existing: unknown, incoming: unknown) {
+  if (!existing && !incoming) return undefined;
+  if (!existing) return incoming;
+  if (!incoming) return existing;
+  if (isRecord(existing) && isRecord(incoming)) {
+    return { ...existing, ...incoming };
+  }
+  return incoming || existing;
 }
 
 function hasChanged(before: ExtractedProduct, after: ExtractedProduct) {
@@ -284,7 +390,7 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
       throw new Error("No product data could be extracted from this page");
     }
 
-    const brandMetrics = await fetchBrandMetrics(product.url);
+    const brandMetrics = await fetchBrandMetrics(product.url, extracted.brandSignals);
 
     const changed = hasChanged(
       {
@@ -308,11 +414,11 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
           image: extracted.image || product.image,
           brand: extracted.brand || product.brand,
           sku: extracted.sku || product.sku,
-          rating: extracted.rating || product.rating,
-          reviewsCount: extracted.reviewsCount || product.reviewsCount,
+          rating: extracted.rating ?? product.rating,
+          reviewsCount: extracted.reviewsCount ?? product.reviewsCount,
           currency: extracted.currency || product.currency,
-          bundlePrices: extracted.bundlePrices || product.bundlePrices || undefined,
-          brandMetrics: brandMetrics || product.brandMetrics || undefined,
+          bundlePrices: toPrismaJson(extracted.bundlePrices || product.bundlePrices),
+          brandMetrics: toPrismaJson(mergeBrandMetrics(product.brandMetrics, brandMetrics)),
           lastCheckedAt: new Date(),
           lastChangedAt: changed ? new Date() : product.lastChangedAt,
           lastError: null,

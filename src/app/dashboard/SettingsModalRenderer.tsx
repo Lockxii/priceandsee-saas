@@ -4,7 +4,18 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useEffect, useCallback } from "react";
 import { AlertSettingsClient } from "./AlertSettingsClient";
 
-export function SettingsModalRenderer({ user, updateProfileAction }: { user: any, updateProfileAction: any }) {
+type SettingsUser = {
+  name?: string | null;
+  email?: string | null;
+  plan?: string | null;
+};
+
+type SettingsModalRendererProps = {
+  user?: SettingsUser | null;
+  updateProfileAction: (formData: FormData) => void | Promise<void>;
+};
+
+export function SettingsModalRenderer({ user, updateProfileAction }: SettingsModalRendererProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -44,16 +55,16 @@ export function SettingsModalRenderer({ user, updateProfileAction }: { user: any
 
       {/* Modal */}
       <div 
-        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-24px)] sm:h-[calc(100vh-48px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
+        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-12px)] sm:h-[calc(100vh-28px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-8 py-5 border-b border-[#f1ded1] flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="px-6 sm:px-8 py-4 border-b border-[#f1ded1] flex justify-between items-center bg-white sticky top-0 z-10">
           <h2 className="text-xl font-bold text-[#24170f]">Account Settings</h2>
         </div>
         
-        <div className="p-8 overflow-auto flex-1 bg-[#fffaf6]">
-          <div className="max-w-4xl mx-auto space-y-8">
-            <div className="bg-white p-8 rounded-2xl border border-[#f1ded1] shadow-sm">
+        <div className="p-4 sm:p-6 flex-1 bg-[#fffaf6] overflow-hidden">
+          <div className="max-w-6xl mx-auto h-full grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 content-start">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
               <h3 className="text-lg font-semibold text-[#24170f] mb-4">Profile</h3>
               <form action={updateProfileAction} className="space-y-4">
                 <div>
@@ -72,9 +83,9 @@ export function SettingsModalRenderer({ user, updateProfileAction }: { user: any
               </form>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl border border-[#f1ded1] shadow-sm">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
               <h3 className="text-lg font-semibold text-[#24170f] mb-4">Billing & Plan</h3>
-              <div className="flex items-center justify-between p-4 bg-[#fffaf6] border border-[#f1ded1] rounded-xl">
+              <div className="flex items-center justify-between gap-4 p-4 bg-[#fffaf6] border border-[#f1ded1] rounded-xl">
                 <div>
                   <p className="font-semibold text-[#24170f]">Current Plan: <span className="text-[#ff690c]">{user?.plan}</span></p>
                   <p className="text-sm text-[#8a7668] mt-1">
@@ -87,11 +98,11 @@ export function SettingsModalRenderer({ user, updateProfileAction }: { user: any
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-[#f1ded1] overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-[#f1ded1] overflow-hidden lg:col-span-2">
               <AlertSettingsClient />
             </div>
 
-            <div className="bg-white p-8 rounded-2xl border border-[#f1ded1] shadow-sm">
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#f1ded1] shadow-sm lg:col-span-2">
               <h3 className="text-lg font-semibold text-red-600 mb-4">Danger Zone</h3>
               <div className="p-5 border border-red-200 bg-[#fff5f5] rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

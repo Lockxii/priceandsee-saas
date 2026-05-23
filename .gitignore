@@ -1,5 +1,10 @@
 node_modules
 .env
 .next
-
 .vercel
+scraper/.venv
+scraper/venv
+__pycache__
+*.pyc
+
+tsconfig.tsbuildinfo

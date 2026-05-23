@@ -7,7 +7,7 @@ Helps Shopify brands and Amazon sellers track competitor product pages automatic
 - **Framework:** Next.js (App Router, Tailwind CSS)
 - **Database:** Neon PostgreSQL + Prisma
 - **Auth:** NextAuth (Credentials)
-- **Scraper:** Python + [Scrapling](https://github.com/D4Vinci/Scrapling)
+- **Scraper:** FastAPI + [Scrapling](https://github.com/D4Vinci/Scrapling)
 
 ## Setup Instructions
 
@@ -17,6 +17,11 @@ We use **Neon Postgres**. In the root of the `saas-app` directory, create a `.en
 DATABASE_URL="postgresql://user:password@ep-cool-db.us-east-2.aws.neon.tech/neondb?sslmode=require"
 NEXTAUTH_SECRET="your-super-secret-key-for-jwt"
 NEXTAUTH_URL="http://localhost:3005"
+SCRAPER_API_URL="http://localhost:8000/scrape"
+SCRAPER_API_KEY="change-me"
+CRON_SECRET="change-me-too"
+# Optional BrandSearch enrichment. Do not commit real API keys.
+BRANDSEARCH_API_KEY=""
 ```
 
 Apply the database schema:
@@ -25,28 +30,47 @@ npx prisma db push
 # or npx prisma migrate dev
 ```
 
-### 2. Install Dependencies & Run
+### 2. Install Dependencies & Run the Next.js App
 ```bash
 npm install
 npm run dev
 ```
 
-### 3. Running the Scraper Worker
-The scraper requires Python to be installed. We use the powerful `Scrapling` library for anti-bot scraping.
+### 3. Run the Scraper API locally
+The Next.js app calls a dedicated FastAPI scraper service. This keeps Scrapling/browser dependencies out of the web runtime.
 
-First, set up a Python environment and install Scrapling:
 ```bash
-pip install scrapling
+cd scraper
+python -m venv .venv
+source .venv/bin/activate
+pip install "scrapling[fetchers]" -r requirements.txt
+scrapling install
+SCRAPER_API_KEY="change-me" uvicorn api:app --host 0.0.0.0 --port 8000
 ```
 
-Then, you can run the Node scraper worker, which fetches URLs from the DB and feeds them to the Python scraper:
+Test it:
 ```bash
-npx ts-node scraper/worker.ts
+curl -X POST http://localhost:8000/scrape \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer change-me" \
+  -d '{"url":"https://example.com","mode":"auto"}'
 ```
-*(In production, you would run this via a Cron job (e.g., using GitHub Actions, Vercel Cron, or a background worker container) every few hours).*
 
-## Vercel Deployment
-1. Import the `saas-app` folder to Vercel.
-2. Link your **Neon Postgres** database using the Vercel CLI or Dashboard.
-3. Add `NEXTAUTH_SECRET` in the Environment Variables.
-4. Deploy!
+### 4. Railway scraper deployment
+Deploy the `scraper/` folder as its own Railway service using `scraper/Dockerfile`.
+
+Important environment variables:
+```env
+SCRAPER_API_KEY="same-value-as-next-app"
+SCRAPER_MODE="auto" # auto | fast | dynamic | stealth
+SCRAPER_TIMEOUT_MS="45000"
+SCRAPER_WAIT_MS="1200"
+```
+
+Then set the Next.js service variable:
+```env
+SCRAPER_API_URL="https://your-railway-scraper.up.railway.app/scrape"
+SCRAPER_API_KEY="same-value-as-scraper-service"
+```
+
+The Dockerfile intentionally resets the official Scrapling image entrypoint. Without that, Railway passes `uvicorn ...` to the `scrapling` CLI and the container fails with `Try 'scrapling --help' for help.`

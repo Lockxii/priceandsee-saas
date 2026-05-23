@@ -8,9 +8,9 @@ export function AlertSettingsClient() {
 
   return (
     <>
-      <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)]">
+      <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)]">
         <h2 className="text-lg font-semibold text-[#24170f] mb-4">Notifications & Alerts</h2>
-        <div className="flex items-center justify-between p-5 bg-[#fffaf6] border border-[#f1ded1] rounded-xl">
+        <div className="flex items-center justify-between gap-4 p-4 bg-[#fffaf6] border border-[#f1ded1] rounded-xl">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-[#ff690c]/10 flex items-center justify-center text-[#ff690c]">
               <Bell className="w-5 h-5" />
@@ -31,7 +31,7 @@ export function AlertSettingsClient() {
 
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-white w-full max-w-4xl sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
+          <div className="bg-white w-full max-w-4xl sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300 max-h-[calc(100vh-32px)]">
             <div className="px-6 py-4 border-b border-[#f1ded1] flex justify-between items-center bg-[#fffaf6] group cursor-default">
               <h3 className="font-semibold text-lg text-[#24170f]">Alert Destinations</h3>
               <div className="flex items-center gap-3">
@@ -42,13 +42,13 @@ export function AlertSettingsClient() {
               </div>
             </div>
             
-            <div className="p-8 sm:p-12 flex flex-col items-center justify-center space-y-8 bg-gradient-to-b from-white to-[#fffaf6]/50">
+            <div className="p-6 sm:p-8 flex flex-col items-center justify-center space-y-6 bg-gradient-to-b from-white to-[#fffaf6]/50">
               <div className="text-center">
                 <h4 className="text-xl font-bold text-[#24170f] mb-2">Connect your networks</h4>
                 <p className="text-[#8a7668]">Select where you want to receive your price drop alerts.</p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-14">
+              <div className="grid grid-cols-2 sm:grid-cols-4 items-center justify-center gap-5 sm:gap-8">
                 {[
                   { name: "Email", icon: "https://upload.wikimedia.org/wikipedia/commons/e/ec/Circle-icons-mail.svg" },
                   { name: "Slack", icon: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg" },
@@ -57,8 +57,8 @@ export function AlertSettingsClient() {
                 ].map((net) => (
                   <label key={net.name} className="flex flex-col items-center gap-3 cursor-pointer group relative">
                     <input type="checkbox" className="sr-only peer" defaultChecked={net.name === "Email"} />
-                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white border-2 border-[#f1ded1] shadow-sm flex items-center justify-center peer-checked:border-[#ff690c] peer-checked:bg-[#fffaf6] peer-checked:shadow-[0_0_15px_rgba(255,105,12,0.15)] transition-all group-hover:scale-105">
-                      <img src={net.icon} alt={net.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain" />
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white border-2 border-[#f1ded1] shadow-sm flex items-center justify-center peer-checked:border-[#ff690c] peer-checked:bg-[#fffaf6] peer-checked:shadow-[0_0_15px_rgba(255,105,12,0.15)] transition-all group-hover:scale-105">
+                      <img src={net.icon} alt={net.name} className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
                       
                       {/* Checkmark badge */}
                       <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#ff690c] rounded-full text-white flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity shadow-md">
