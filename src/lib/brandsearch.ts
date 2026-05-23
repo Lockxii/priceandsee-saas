@@ -251,9 +251,12 @@ async function fetchBrandByDomain(url: string, domain: string, apiKey: string) {
     `/v1/lookup?${lookupParams}`,
   ];
 
+  let fallbackBrand: JsonRecord | null = null;
+
   for (const path of candidates) {
     const brand = selectBrand(await fetchBrandSearchJson(path, apiKey));
     if (!brand) continue;
+    fallbackBrand ||= brand;
 
     const brandId = asString(brand.id) || asString(brand.domain);
     const hasProjectedTraffic = Boolean(
@@ -265,14 +268,26 @@ async function fetchBrandByDomain(url: string, domain: string, apiKey: string) {
       brand.traffic_data,
     );
 
-    if (brandId && !hasProjectedTraffic && path.includes("/lookup")) {
-      return selectBrand(await fetchBrandSearchJson(`/v1/brands/${encodeURIComponent(brandId)}`, apiKey)) || brand;
-    }
+    if (hasProjectedTraffic) return brand;
 
-    return brand;
+    if (brandId && path.includes("/lookup")) {
+      const resolvedBrand = selectBrand(await fetchBrandSearchJson(`/v1/brands/${encodeURIComponent(brandId)}`, apiKey));
+      if (resolvedBrand) {
+        fallbackBrand ||= resolvedBrand;
+        const resolvedHasProjectedTraffic = Boolean(
+          resolvedBrand.visit_trends ||
+          resolvedBrand.visit_history ||
+          resolvedBrand.visits_history ||
+          resolvedBrand.traffic_history ||
+          resolvedBrand.monthly_visits_data ||
+          resolvedBrand.traffic_data,
+        );
+        if (resolvedHasProjectedTraffic) return resolvedBrand;
+      }
+    }
   }
 
-  return null;
+  return fallbackBrand;
 }
 
 function competitorQueryFor(brand: JsonRecord | null, domain: string) {

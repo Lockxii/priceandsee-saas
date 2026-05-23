@@ -822,6 +822,16 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
   const visitDuration = metrics ? readNumberFromKeys(metrics, ["visit_duration", "visitDuration"]) : undefined;
   const growth = metrics ? readNumberFromKeys(metrics, ["growth_30d", "growth30d"]) : undefined;
   const productCount = metrics ? readNumberFromKeys(metrics, ["product_count", "productCount"]) : undefined;
+  const trafficMetrics = [
+    { label: "Monthly visits", value: formatCompact(visits), strong: true },
+    { label: "Revenue", value: formatMoneyRange(revenueRange.min, revenueRange.max, currency) },
+    { label: "Rank", value: rank ? `#${formatCompact(rank)}` : "—" },
+    { label: "30d", value: growth !== undefined ? `${growth > 0 ? "+" : ""}${growth.toFixed(1)}%` : "—" },
+    { label: "Bounce", value: bounceRate !== undefined ? `${(bounceRate <= 1 ? bounceRate * 100 : bounceRate).toFixed(0)}%` : "—" },
+    { label: "Pages", value: pagesPerVisit !== undefined ? pagesPerVisit.toFixed(1) : "—" },
+    { label: "Duration", value: visitDuration !== undefined ? `${Math.round(visitDuration)}s` : "—" },
+    { label: "Products", value: formatCompact(productCount) },
+  ];
   const hasSignals = visits !== undefined || revenue !== undefined || countries.length > 0 || rank !== undefined || productCount !== undefined;
 
   if (!hasSignals) {
@@ -842,7 +852,7 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
   }
 
   return (
-    <div className="h-full min-h-[330px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+    <div className="h-full min-h-[300px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
       <div className="flex items-start justify-between gap-3 flex-shrink-0">
         <div>
           <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
@@ -851,32 +861,16 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
         <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
-        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Monthly visits</p>
-          <p className="mt-3 text-4xl font-black leading-none text-[#24170f]">{formatCompact(visits)}</p>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-[#8a7668]">
-            <span className="rounded-lg border border-[#f1ded1] bg-white px-2 py-1">Rank {rank ? `#${formatCompact(rank)}` : "—"}</span>
-            <span className="rounded-lg border border-[#f1ded1] bg-white px-2 py-1">30d {growth !== undefined ? `${growth > 0 ? "+" : ""}${growth.toFixed(1)}%` : "—"}</span>
+      <div className="mt-4 grid grid-cols-2 xl:grid-cols-4 gap-3 flex-shrink-0">
+        {trafficMetrics.map((metric) => (
+          <div key={metric.label} className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] truncate">{metric.label}</p>
+            <p className={`${metric.strong ? "text-3xl" : "text-xl"} mt-2 font-black leading-none text-[#24170f] truncate`}>{metric.value}</p>
           </div>
-        </div>
-        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Revenue range</p>
-          <p className="mt-3 text-3xl font-black leading-tight text-[#24170f]">{formatMoneyRange(revenueRange.min, revenueRange.max, currency)}</p>
-          <p className="mt-2 text-xs font-medium text-[#8a7668]">BrandSearch min/max revenue estimate.</p>
-        </div>
-        <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
-          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Engagement</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Bounce</p><p className="font-black text-[#24170f]">{bounceRate !== undefined ? `${(bounceRate <= 1 ? bounceRate * 100 : bounceRate).toFixed(0)}%` : "—"}</p></div>
-            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Pages</p><p className="font-black text-[#24170f]">{pagesPerVisit !== undefined ? pagesPerVisit.toFixed(1) : "—"}</p></div>
-            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Duration</p><p className="font-black text-[#24170f]">{visitDuration !== undefined ? `${Math.round(visitDuration)}s` : "—"}</p></div>
-            <div className="rounded-xl border border-[#f1ded1] bg-white px-3 py-2"><p className="text-[10px] font-black uppercase text-[#a99485]">Products</p><p className="font-black text-[#24170f]">{formatCompact(productCount)}</p></div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-shrink-0">
+      <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-1 min-h-0 overflow-hidden">
         <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Top countries</p>
         {countries.length ? (
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
