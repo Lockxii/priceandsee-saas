@@ -191,7 +191,7 @@ export default function VisitHistoryChart({ data, totalVisits, countries = [], c
           ))
         ) : (
           <span className="text-xs font-medium text-[#8a7668]">
-            {data.length > 1 ? "Traffic history pulled from BrandSearch." : "Only the latest BrandSearch visit signal is available."}
+            {data.length > 1 ? "Traffic history returned by BrandSearch." : "Only the latest BrandSearch visit signal is available."}
           </span>
         )}
       </div>

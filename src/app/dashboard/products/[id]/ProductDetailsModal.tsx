@@ -846,7 +846,7 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
       <div className="flex items-start justify-between gap-3 flex-shrink-0">
         <div>
           <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
-          <p className="mt-1 text-sm text-[#8a7668]">Latest documented BrandSearch snapshot. Their API does not expose visit history.</p>
+          <p className="mt-1 text-sm text-[#8a7668]">Latest documented BrandSearch snapshot. Traffic history appears when projected visit fields are returned.</p>
         </div>
         <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
       </div>
@@ -888,7 +888,7 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[#8a7668]">No country split returned by the documented BrandSearch brand endpoint.</p>
+          <p className="text-sm text-[#8a7668]">No country split returned by BrandSearch for this brand.</p>
         )}
       </div>
     </div>
