@@ -21,8 +21,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   const params = await searchParams;
   const q = params?.q?.trim() || "";
+  const hasQuery = q.length > 0;
 
-  const where = q
+  const where = hasQuery
     ? {
         OR: [
           { email: { contains: q, mode: "insensitive" as const } },
@@ -30,7 +31,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           { id: { contains: q } },
         ],
       }
-    : {};
+    : { id: "__no_default_results__" };
 
   const [users, totalUsers, totalProducts, totalJobs, failedJobs, recentJobs] = await Promise.all([
     prisma.user.findMany({
@@ -96,8 +97,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </form>
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="space-y-4 min-w-0">
+          {hasQuery ? (
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-4 min-w-0">
               {users.map((user) => (
                 <div key={user.id} className="rounded-[16px] border border-[#e0e0e0] bg-white p-5 overflow-visible">
                   <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row">
@@ -166,6 +168,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </div>
             </aside>
           </section>
+          ) : (
+            <section className="rounded-[16px] border border-dashed border-[#e0d4ca] bg-white/70 p-10 text-center">
+              <p className="text-lg font-bold text-[#24170f]">Search for a user to edit their account.</p>
+              <p className="mt-2 text-sm text-[#6f5a4d]">Nothing is shown by default. Enter an email, name, or user ID above.</p>
+            </section>
+          )}
         </div>
       </div>
     </>
