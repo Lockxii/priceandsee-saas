@@ -30,6 +30,10 @@ def clean_text(value: Any) -> str | None:
     except Exception:
         pass
     text = html.unescape(str(value)).replace("\xa0", " ")
+    if "<" in text and ">" in text:
+        text = re.sub(r"<script\b[^>]*>[\s\S]*?</script>", " ", text, flags=re.I)
+        text = re.sub(r"<style\b[^>]*>[\s\S]*?</style>", " ", text, flags=re.I)
+        text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text or None
 
@@ -153,6 +157,23 @@ def stock_status(value: Any) -> str | None:
         return "Out of Stock"
     if any(token in text for token in ["instock", "in stock", "available", "disponible", "en stock", "add to cart", "ajouter au panier", "limitedavailability", "preorder", "backorder"]):
         return "In Stock"
+    return None
+
+
+def parse_rating(value: Any) -> float | None:
+    if value is None:
+        return None
+    match = re.search(r"\d+(?:[\.,]\d+)?", str(value))
+    if not match:
+        return None
+    try:
+        rating = float(match.group(0).replace(",", "."))
+    except ValueError:
+        return None
+    if 0 <= rating <= 5:
+        return round(rating, 2)
+    if 5 < rating <= 100 and "%" in str(value):
+        return round(rating / 20, 2)
     return None
 
 
@@ -300,8 +321,361 @@ def extract_from_json_ld(page: Any) -> dict[str, Any]:
     return best
 
 
-def detect_platform(raw: str) -> str | None:
+MARKETPLACE_PROFILES: dict[str, dict[str, Any]] = {
+    "amazon": {
+        "domains": ["amazon."],
+        "platform": "Amazon",
+        "title": ["#productTitle::text", "#title::text", 'meta[name="title"]::attr(content)'],
+        "price": ["#corePrice_feature_div .a-offscreen::text", ".a-price .a-offscreen::text", "#priceblock_ourprice::text", "#priceblock_dealprice::text", "#price_inside_buybox::text"],
+        "image": ["#landingImage::attr(src)", "#imgTagWrapperId img::attr(src)", 'meta[property="og:image"]::attr(content)'],
+        "brand": ["#bylineInfo::text", "tr.po-brand .po-break-word::text", 'a#bylineInfo::text'],
+        "sku": ["#ASIN::attr(value)", '[name="ASIN"]::attr(value)', '[data-asin]::attr(data-asin)'],
+        "rating": ["#acrPopover::attr(title)", "span[data-hook='rating-out-of-text']::text", ".reviewCountTextLinkedHistogram::attr(title)"],
+        "reviews": ["#acrCustomerReviewText::text", "span[data-hook='total-review-count']::text"],
+        "stock": ["#availability ::text", "#outOfStock ::text"],
+    },
+    "etsy": {
+        "domains": ["etsy.com"],
+        "platform": "Etsy",
+        "title": ['h1[data-buy-box-listing-title]::text', "h1::text", 'meta[property="og:title"]::attr(content)'],
+        "price": ['p[data-buy-box-region="price"]::text', '[data-buy-box-region="price"] .currency-value::text', '.wt-text-title-03::text'],
+        "image": ['meta[property="og:image"]::attr(content)', '.listing-page-image img::attr(src)', '[data-carousel-first-image] img::attr(src)'],
+        "brand": ['meta[property="og:site_name"]::attr(content)', '[data-region="shop-info"] a::text', '.shop-name-and-title-container a::text'],
+        "rating": ['input[name="initial-rating"]::attr(value)', '[aria-label*="star"]::attr(aria-label)'],
+        "reviews": ['a[href*="reviews"]::text', '[data-reviews-pagination]::text'],
+        "stock": ['[data-buy-box-region="stock-indicator"]::text', '[data-selector="listing-page-cart"] ::text'],
+    },
+    "ebay": {
+        "domains": ["ebay."],
+        "platform": "eBay",
+        "title": ["h1.x-item-title__mainTitle span::text", "#itemTitle::text", "h1::text"],
+        "price": [".x-price-primary span::text", "#prcIsum::text", "#mm-saleDscPrc::text", '[itemprop="price"]::attr(content)'],
+        "image": ['meta[property="og:image"]::attr(content)', '#icImg::attr(src)', '.ux-image-carousel-item img::attr(src)'],
+        "brand": ['[itemprop="brand"]::text', '.ux-labels-values__values ::text'],
+        "sku": ['[itemprop="sku"]::attr(content)', '[data-testid="x-item-condition-value"]::text'],
+        "rating": ['[aria-label*="stars"]::attr(aria-label)'],
+        "reviews": ['[aria-label*="reviews"]::text'],
+        "stock": ['#qtySubTxt::text', '.d-quantity__availability ::text'],
+    },
+    "walmart": {
+        "domains": ["walmart."],
+        "platform": "Walmart",
+        "title": ['h1[itemprop="name"]::text', "h1::text", 'meta[property="og:title"]::attr(content)'],
+        "price": ['[itemprop="price"]::attr(content)', '[data-testid="price-wrap"] ::text', 'span[itemprop="price"]::text'],
+        "image": ['meta[property="og:image"]::attr(content)', '[data-testid="hero-image"]::attr(src)', 'img.db::attr(src)'],
+        "brand": ['[itemprop="brand"]::text', '[data-testid="product-brand"]::text'],
+        "sku": ['[itemprop="sku"]::attr(content)', '[data-testid="product-sku"]::text'],
+        "rating": ['[itemprop="ratingValue"]::attr(content)', '[data-testid="reviews-and-ratings"]::text'],
+        "reviews": ['[itemprop="reviewCount"]::attr(content)', '[data-testid="reviews-and-ratings"]::text'],
+        "stock": ['[data-testid="fulfillment-cta"] ::text', '[data-testid="add-to-cart-section"] ::text'],
+    },
+    "aliexpress": {
+        "domains": ["aliexpress."],
+        "platform": "AliExpress",
+        "title": ['h1[data-pl="product-title"]::text', "h1::text", 'meta[property="og:title"]::attr(content)'],
+        "price": ['[class*="price"]::text', 'meta[property="product:price:amount"]::attr(content)'],
+        "image": ['meta[property="og:image"]::attr(content)', '[class*="slider"] img::attr(src)'],
+        "brand": ['[class*="store"] a::text', 'meta[property="og:site_name"]::attr(content)'],
+        "rating": ['[class*="rating"]::text'],
+        "reviews": ['[class*="review"]::text'],
+        "stock": ['[class*="quantity"]::text', '[class*="shipping"]::text'],
+    },
+    "temu": {
+        "domains": ["temu.com"],
+        "platform": "Temu",
+        "title": ["h1::text", 'meta[property="og:title"]::attr(content)'],
+        "price": ['[class*="price"]::text', 'meta[property="product:price:amount"]::attr(content)'],
+        "image": ['meta[property="og:image"]::attr(content)', 'img[src*="img.kwcdn"]::attr(src)'],
+        "brand": ['meta[property="og:site_name"]::attr(content)'],
+        "rating": ['[class*="rating"]::text'],
+        "reviews": ['[class*="review"]::text'],
+        "stock": ['[class*="stock"]::text', '[class*="quantity"]::text'],
+    },
+    "shein": {
+        "domains": ["shein.com"],
+        "platform": "SHEIN",
+        "title": [".product-intro__head-name::text", "h1::text", 'meta[property="og:title"]::attr(content)'],
+        "price": [".from::text", ".original::text", ".product-intro__head-mainprice::text", '[class*="price"]::text'],
+        "image": ['meta[property="og:image"]::attr(content)', '.product-intro__thumbs-inner img::attr(src)', '.crop-image-container img::attr(src)'],
+        "brand": ['.product-intro__head-brand::text', 'meta[property="og:site_name"]::attr(content)'],
+        "sku": ['.product-intro__head-sku::text'],
+        "rating": ['[class*="rate"]::text'],
+        "reviews": ['[class*="review"]::text'],
+        "stock": ['[class*="stock"]::text', '[class*="sold-out"]::text'],
+    },
+    "woocommerce": {
+        "domains": [],
+        "platform": "WooCommerce",
+        "title": ["h1.product_title::text", "h1.entry-title::text", "h1::text"],
+        "price": [".woocommerce-Price-amount::text", "p.price::text", ".price ins .amount::text", ".price .amount::text"],
+        "image": ['.woocommerce-product-gallery__image img::attr(src)', 'meta[property="og:image"]::attr(content)'],
+        "brand": ['.posted_in a::text', '[rel="tag"]::text', 'meta[property="og:site_name"]::attr(content)'],
+        "sku": [".sku::text"],
+        "rating": ['.woocommerce-product-rating .star-rating::attr(aria-label)', '.woocommerce-review-link::text'],
+        "reviews": ['.woocommerce-review-link::text'],
+        "stock": ['.stock::text', '.single_add_to_cart_button::text'],
+    },
+    "magento": {
+        "domains": [],
+        "platform": "Magento",
+        "title": ['h1.page-title span::text', 'h1::text'],
+        "price": ['[data-price-type="finalPrice"]::attr(data-price-amount)', '[data-price-type="finalPrice"] .price::text', '.price-final_price .price::text'],
+        "image": ['meta[property="og:image"]::attr(content)', '.fotorama__img::attr(src)', '.gallery-placeholder img::attr(src)'],
+        "brand": ['[data-th="Brand"]::text', '.product.attribute.brand ::text'],
+        "sku": ['.product.attribute.sku .value::text', '[itemprop="sku"]::text'],
+        "rating": ['.rating-result::attr(title)', '[itemprop="ratingValue"]::attr(content)'],
+        "reviews": ['.reviews-actions .view::text', '[itemprop="reviewCount"]::attr(content)'],
+        "stock": ['.stock::text', '.box-tocart ::text'],
+    },
+    "prestashop": {
+        "domains": [],
+        "platform": "PrestaShop",
+        "title": ['h1[itemprop="name"]::text', 'h1::text'],
+        "price": ['.current-price span::attr(content)', '.current-price span::text', '[itemprop="price"]::attr(content)'],
+        "image": ['meta[property="og:image"]::attr(content)', '.product-cover img::attr(src)'],
+        "brand": ['.product-manufacturer a::text', '[itemprop="brand"]::text'],
+        "sku": ['[itemprop="sku"]::text'],
+        "rating": ['[itemprop="ratingValue"]::attr(content)'],
+        "reviews": ['[itemprop="reviewCount"]::attr(content)'],
+        "stock": ['#product-availability::text', '.add-to-cart::text'],
+    },
+    "bigcommerce": {
+        "domains": [],
+        "platform": "BigCommerce",
+        "title": ['h1.productView-title::text', 'h1::text'],
+        "price": ['.price--withoutTax::text', '.price--withTax::text', '[data-product-price-without-tax]::text'],
+        "image": ['meta[property="og:image"]::attr(content)', '.productView-image img::attr(src)'],
+        "brand": ['.productView-brand a::text', '[itemprop="brand"]::text'],
+        "sku": ['[data-product-sku]::text', '[itemprop="sku"]::text'],
+        "rating": ['[aria-label*="Rating"]::attr(aria-label)', '.rating--small::attr(title)'],
+        "reviews": ['.productView-reviewLink::text'],
+        "stock": ['[data-product-stock]::text', '.form-action .button::text'],
+    },
+}
+
+GENERIC_SELECTORS: dict[str, list[str]] = {
+    "title": [
+        'meta[property="og:title"]::attr(content)', 'meta[name="twitter:title"]::attr(content)',
+        '[itemprop="name"]::attr(content)', '[itemprop="name"]::text', '[data-testid*="title"]::text',
+        '[data-test*="title"]::text', '.product-title::text', '.product_title::text', '.product-name::text',
+        '.pdp-title::text', '.productView-title::text', 'h1::text', 'title::text',
+    ],
+    "price": [
+        'meta[property="product:price:amount"]::attr(content)', 'meta[itemprop="price"]::attr(content)',
+        '[itemprop="price"]::attr(content)', '[data-price]::attr(data-price)', '[data-product-price]::attr(data-product-price)',
+        '[data-testid*="price"]::text', '[data-test*="price"]::text', '[class*="price"]::text',
+        '.a-price .a-offscreen::text', '.woocommerce-Price-amount::text', '.price-item--sale::text',
+        '.price-item--regular::text', '.current-price::text', '.sale-price::text', '.regular-price::text', '.price::text',
+    ],
+    "description": [
+        'meta[property="og:description"]::attr(content)', 'meta[name="description"]::attr(content)',
+        '[itemprop="description"]::text', '#productDescription ::text', '.product-description ::text',
+        '.description ::text', '[data-testid*="description"]::text',
+    ],
+    "image": [
+        'meta[property="og:image"]::attr(content)', 'meta[name="twitter:image"]::attr(content)',
+        '[itemprop="image"]::attr(content)', '[itemprop="image"]::attr(src)',
+        '.product img::attr(src)', '.product-media img::attr(src)', '.product-gallery img::attr(src)',
+        '[data-testid*="image"] img::attr(src)', 'main img::attr(src)',
+    ],
+    "brand": [
+        'meta[property="product:brand"]::attr(content)', '[itemprop="brand"]::attr(content)', '[itemprop="brand"]::text',
+        '[data-brand]::attr(data-brand)', '[data-testid*="brand"]::text', '.brand::text', '.vendor::text',
+        '.product-vendor::text', 'meta[property="og:site_name"]::attr(content)',
+    ],
+    "sku": [
+        '[itemprop="sku"]::attr(content)', '[itemprop="sku"]::text', '[data-sku]::attr(data-sku)',
+        '.sku::text', '[class*="sku"]::text', '[id*="sku"]::text',
+    ],
+    "rating": [
+        '[itemprop="ratingValue"]::attr(content)', '[aria-label*="star"]::attr(aria-label)',
+        '[aria-label*="étoile"]::attr(aria-label)', '[class*="rating"]::attr(title)', '[class*="rating"]::text',
+    ],
+    "reviews": [
+        '[itemprop="reviewCount"]::attr(content)', '[class*="review"]::text', '[data-testid*="review"]::text',
+        '[aria-label*="review"]::attr(aria-label)', '[aria-label*="avis"]::attr(aria-label)',
+    ],
+    "stock": [
+        'link[itemprop="availability"]::attr(href)', '[itemprop="availability"]::attr(content)',
+        '#availability ::text', '.stock::text', '[data-availability]::attr(data-availability)',
+        '[data-testid*="stock"]::text', '[class*="availability"]::text', '[class*="sold-out"]::text',
+        'button[name="add"]::text', '[type="submit"]::text',
+    ],
+}
+
+MARKETPLACE_HINTS = {
+    "amazon.": "Amazon",
+    "etsy.com": "Etsy",
+    "ebay.": "eBay",
+    "walmart.": "Walmart",
+    "aliexpress.": "AliExpress",
+    "temu.com": "Temu",
+    "shein.com": "SHEIN",
+    "dhgate.com": "DHgate",
+    "wish.com": "Wish",
+    "shopee.": "Shopee",
+    "lazada.": "Lazada",
+    "mercadolibre.": "MercadoLibre",
+    "rakuten.": "Rakuten",
+    "target.com": "Target",
+    "bestbuy.com": "Best Buy",
+    "shop.app": "Shop App",
+}
+
+
+def profile_for_url(url: str, raw: str = "") -> dict[str, Any] | None:
+    host = (urlparse(url).hostname or "").lower().replace("www.", "")
+    lowered_raw = raw.lower()
+    for profile in MARKETPLACE_PROFILES.values():
+        if any(domain in host for domain in profile.get("domains", [])):
+            return profile
+    platform = detect_platform(raw, url)
+    if platform:
+        for profile in MARKETPLACE_PROFILES.values():
+            if profile.get("platform") == platform:
+                return profile
+    if "woocommerce" in lowered_raw:
+        return MARKETPLACE_PROFILES["woocommerce"]
+    if "magento" in lowered_raw or "mage/" in lowered_raw:
+        return MARKETPLACE_PROFILES["magento"]
+    if "prestashop" in lowered_raw:
+        return MARKETPLACE_PROFILES["prestashop"]
+    if "bigcommerce" in lowered_raw or "stencil-utils" in lowered_raw:
+        return MARKETPLACE_PROFILES["bigcommerce"]
+    return None
+
+
+def deep_find_product_json(value: Any, depth: int = 0):
+    if depth > 9:
+        return
+    if isinstance(value, dict):
+        keys = {str(key).lower() for key in value.keys()}
+        has_price = bool(keys & {"price", "priceamount", "saleprice", "finalprice", "currentprice", "amount", "lowprice", "highprice"})
+        has_title = bool(keys & {"title", "name", "productname"})
+        has_product_marker = bool(keys & {"product", "productid", "product_id", "sku", "asin", "variants", "offers"})
+        if has_price and (has_title or has_product_marker):
+            yield value
+        for child in value.values():
+            yield from deep_find_product_json(child, depth + 1)
+    elif isinstance(value, list):
+        for child in value[:80]:
+            yield from deep_find_product_json(child, depth + 1)
+
+
+def pick_from_keys(record: dict[str, Any], keys: list[str]) -> Any:
+    lowered = {str(key).lower(): key for key in record.keys()}
+    for key in keys:
+        actual = lowered.get(key.lower())
+        if actual is not None:
+            return record.get(actual)
+    return None
+
+
+def extract_product_from_embedded_record(record: dict[str, Any]) -> dict[str, Any]:
+    title = pick_from_keys(record, ["title", "name", "productName", "displayName"])
+    price_value = pick_from_keys(record, ["price", "priceAmount", "salePrice", "finalPrice", "currentPrice", "amount", "lowPrice", "highPrice"])
+    if isinstance(price_value, dict):
+        price_value = pick_from_keys(price_value, ["value", "amount", "price", "centAmount", "currencyAmount"])
+    image = pick_from_keys(record, ["image", "imageUrl", "imageURL", "thumbnail", "thumbnailUrl", "media", "images"])
+    if isinstance(image, list) and image:
+        image = image[0]
+    if isinstance(image, dict):
+        image = pick_from_keys(image, ["url", "src", "imageUrl"])
+    brand = pick_from_keys(record, ["brand", "brandName", "manufacturer", "sellerName", "shopName", "vendor"])
+    if isinstance(brand, dict):
+        brand = pick_from_keys(brand, ["name", "brandName"])
+    rating = pick_from_keys(record, ["rating", "ratingValue", "averageRating", "stars"])
+    reviews = pick_from_keys(record, ["reviewCount", "reviewsCount", "ratingCount", "totalReviews", "reviews"])
+    sku = pick_from_keys(record, ["sku", "asin", "productId", "productID", "id", "mpn"])
+    currency = pick_from_keys(record, ["currency", "priceCurrency", "currencyCode"])
+    availability = pick_from_keys(record, ["availability", "stock", "stockStatus", "isAvailable", "available"])
+
+    data = {
+        "title": clean_text(title),
+        "price": clean_price(price_value),
+        "image": clean_text(image),
+        "brand": clean_text(brand),
+        "sku": clean_text(sku),
+        "currency": normalize_currency(currency),
+        "rating": parse_rating(rating),
+        "reviewsCount": to_int(reviews),
+        "stockStatus": stock_status(availability) or ("In Stock" if availability is True else "Out of Stock" if availability is False else None),
+    }
+    return compact(data)
+
+
+def extract_from_embedded_json(page: Any) -> dict[str, Any]:
+    best: dict[str, Any] = {}
+    scripts = all_css(page, "script::text", limit=160)
+    scripts.extend(raw_css_values(page, 'script#__NEXT_DATA__::text', limit=3))
+    scripts.extend(raw_css_values(page, 'script[id*="initial" i]::text', limit=10))
+    for script in scripts:
+        if not any(token in script.lower() for token in ["price", "product", "sku", "asin", "offers"]):
+            continue
+        candidates: list[str] = []
+        stripped = script.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
+            candidates.append(stripped)
+        for pattern in [
+            r"(?:self\.__next_f|window\.__INITIAL_STATE__|window\.__PRELOADED_STATE__|window\.__APOLLO_STATE__|window\.__NUXT__)\s*=\s*({[\s\S]*?});?$",
+        ]:
+            match = re.search(pattern, script, flags=re.I)
+            if match:
+                candidates.append(match.group(1))
+        for candidate in candidates[:3]:
+            try:
+                parsed = json_loads_loose(candidate)
+            except Exception:
+                continue
+            for record in deep_find_product_json(parsed):
+                if not isinstance(record, dict):
+                    continue
+                data = extract_product_from_embedded_record(record)
+                score = sum(1 for key in ["title", "price", "image", "brand", "sku", "rating", "reviewsCount", "stockStatus"] if data.get(key) is not None)
+                if score > sum(1 for key in ["title", "price", "image", "brand", "sku", "rating", "reviewsCount", "stockStatus"] if best.get(key) is not None):
+                    best = {**best, **data}
+                if best.get("title") and best.get("price") is not None and best.get("image"):
+                    return best
+    return best
+
+
+def extract_with_selectors(page: Any, selectors: dict[str, list[str]], raw: str, base_url: str) -> dict[str, Any]:
+    price_text = first_css(page, selectors.get("price", []))
+    image = first_css(page, selectors.get("image", []))
+    if image:
+        image = absolutize_url(image, base_url)
+    data = {
+        "title": first_css(page, selectors.get("title", [])),
+        "price": clean_price(price_text),
+        "description": first_css(page, selectors.get("description", [])),
+        "image": image,
+        "brand": first_css(page, selectors.get("brand", [])),
+        "sku": first_css(page, selectors.get("sku", [])),
+        "currency": normalize_currency(first_css(page, ['meta[property="product:price:currency"]::attr(content)', 'meta[itemprop="priceCurrency"]::attr(content)']), price_text or raw[:5000]),
+        "rating": parse_rating(first_css(page, selectors.get("rating", []))),
+        "reviewsCount": to_int(first_css(page, selectors.get("reviews", []))),
+        "stockStatus": stock_status(first_css(page, selectors.get("stock", [])) or raw[:100_000]),
+    }
+    return compact(data)
+
+
+def merge_missing(base: dict[str, Any], *sources: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for source in sources:
+        for key, value in source.items():
+            if value in (None, "", [], {}):
+                continue
+            if merged.get(key) in (None, "", [], {}):
+                merged[key] = value
+    return merged
+
+
+def detect_platform(raw: str, url: str = "") -> str | None:
     text = raw.lower()
+    host = (urlparse(url).hostname or "").lower().replace("www.", "")
+    for needle, name in MARKETPLACE_HINTS.items():
+        if needle in host:
+            return name
     if "cdn.shopify.com" in text or "shopify.theme" in text or "shopifyanalytics" in text:
         return "Shopify"
     if "woocommerce" in text or "wp-content/plugins/woocommerce" in text:
@@ -392,7 +766,7 @@ def extract_brand_signals(page: Any, url: str, fetcher_used: str, raw: str) -> d
         "siteName": site_name,
         "canonicalUrl": canonical,
         "locale": first_css(page, ['html::attr(lang)', 'meta[property="og:locale"]::attr(content)']),
-        "platform": detect_platform(raw),
+        "platform": detect_platform(raw, url),
         "technologies": detect_tech_signals(raw),
         "socialLinks": extract_social_links(page, url),
         "emails": emails,
@@ -630,48 +1004,37 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
 
     data: dict[str, Any] = dict(json_ld)
 
-    title = first_css(page, [
-        'meta[property="og:title"]::attr(content)',
-        'meta[name="twitter:title"]::attr(content)',
-        "h1#productTitle::text",
-        "h1.product-title::text",
-        "h1.product_title::text",
-        "h1[itemprop='name']::text",
-        "h1::text",
-        "title::text",
-    ])
+    profile = profile_for_url(url, raw)
+    profile_data = extract_with_selectors(page, profile, raw, url) if profile else {}
+    generic_data = extract_with_selectors(page, GENERIC_SELECTORS, raw, url)
+    embedded_data = extract_from_embedded_json(page)
+    if embedded_data.get("image"):
+        embedded_data["image"] = absolutize_url(str(embedded_data["image"]), url)
+    data = merge_missing(data, profile_data, generic_data, embedded_data)
+
+    title = first_css(page, GENERIC_SELECTORS["title"])
     data["title"] = data.get("title") or title
 
-    price_text = first_css(page, [
-        'meta[property="product:price:amount"]::attr(content)',
-        'meta[itemprop="price"]::attr(content)',
-        '[itemprop="price"]::attr(content)',
-        '[data-price]::attr(data-price)',
-        'span.a-price span.a-offscreen::text',
-        '#priceblock_ourprice::text',
-        '#price_inside_buybox::text',
-        '.woocommerce-Price-amount::text',
-        '.price-item--regular::text',
-        '.price-item--sale::text',
-        '.current-price::text',
-        '.price::text',
-    ])
+    price_text = first_css(page, GENERIC_SELECTORS["price"])
     data["price"] = data.get("price") if data.get("price") is not None else clean_price(price_text)
     if data.get("price") is None:
         price_match = re.search(r"(?:€|EUR|USD|\$|£|GBP)\s?\d[\d\s.,]*|\d[\d\s.,]*\s?(?:€|EUR|USD|\$|£|GBP)", raw, flags=re.I)
         data["price"] = clean_price(price_match.group(0)) if price_match else None
 
-    description = first_css(page, ['meta[property="og:description"]::attr(content)', 'meta[name="description"]::attr(content)', '#productDescription ::text'])
+    description = first_css(page, GENERIC_SELECTORS["description"])
     data["description"] = data.get("description") or description
     data["promoText"] = (description or data.get("description") or "")[:240] or None
 
-    data["image"] = data.get("image") or first_css(page, ['meta[property="og:image"]::attr(content)', 'meta[name="twitter:image"]::attr(content)', '[itemprop="image"]::attr(src)'])
+    data["image"] = data.get("image") or first_css(page, GENERIC_SELECTORS["image"])
     if data.get("image"):
         data["image"] = urljoin(url, data["image"])
 
-    data["brand"] = data.get("brand") or first_css(page, ['meta[property="product:brand"]::attr(content)', '[itemprop="brand"]::attr(content)', '[data-brand]::attr(data-brand)', 'meta[property="og:site_name"]::attr(content)'])
-    data["currency"] = data.get("currency") or normalize_currency(first_css(page, ['meta[property="product:price:currency"]::attr(content)']), price_text or raw[:5000])
-    data["stockStatus"] = data.get("stockStatus") or stock_status(first_css(page, ['link[itemprop="availability"]::attr(href)', '[itemprop="availability"]::attr(content)', '#availability ::text', '.stock::text', '[data-availability]::attr(data-availability)']) or raw[:100_000])
+    data["brand"] = data.get("brand") or first_css(page, GENERIC_SELECTORS["brand"])
+    data["sku"] = data.get("sku") or first_css(page, GENERIC_SELECTORS["sku"])
+    data["rating"] = data.get("rating") if data.get("rating") is not None else parse_rating(first_css(page, GENERIC_SELECTORS["rating"]))
+    data["reviewsCount"] = data.get("reviewsCount") if data.get("reviewsCount") is not None else to_int(first_css(page, GENERIC_SELECTORS["reviews"]))
+    data["currency"] = data.get("currency") or normalize_currency(first_css(page, ['meta[property="product:price:currency"]::attr(content)', 'meta[itemprop="priceCurrency"]::attr(content)']), price_text or raw[:5000])
+    data["stockStatus"] = data.get("stockStatus") or stock_status(first_css(page, GENERIC_SELECTORS["stock"]) or raw[:100_000])
 
     if not data.get("bundlePrices"):
         data["bundlePrices"] = extract_shopify_variants(page)
@@ -745,7 +1108,7 @@ def scrape_url(url: str, mode: str | None = None, timeout_ms: int | None = None,
     timeout_ms = timeout_ms or DEFAULT_TIMEOUT_MS
     wait_ms = wait_ms or DEFAULT_WAIT_MS
 
-    modes = ["fast", "stealth"] if mode == "auto" else [mode]
+    modes = ["fast", "dynamic", "stealth"] if mode == "auto" else [mode]
     errors: list[str] = []
 
     for selected_mode in modes:
