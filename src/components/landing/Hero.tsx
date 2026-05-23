@@ -43,9 +43,9 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="text-[40px] sm:text-[48px] md:text-[52px] lg:text-[62px] font-[800] tracking-tight leading-[1.05] mb-8 relative z-10"
+          className="text-[40px] sm:text-[48px] md:text-[50px] lg:text-[56px] font-[800] tracking-tight leading-[1.05] mb-8 relative z-10"
         >
-          <span className="text-black relative inline-block md:whitespace-nowrap">
+          <span className="text-black relative inline-block md:whitespace-nowrap pr-2">
             Trouvez les prix, stocks &amp; promotions
             
             {/* Badge floating overlapping the end of the text */}
@@ -53,7 +53,7 @@ export function Hero() {
               initial={{ opacity: 0, rotate: -15, scale: 0.8 }}
               animate={{ opacity: 1, rotate: -3, scale: 1 }}
               transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
-              className="absolute -bottom-1 right-[10%] md:-bottom-2 md:right-[15%] inline-flex items-center justify-center bg-gradient-to-br from-[#ff690c] to-[#e55e0b] text-white px-3 py-1 md:px-4 md:py-1.5 rounded-[8px] text-[10px] md:text-[13px] font-bold tracking-widest uppercase shadow-[0_4px_14px_rgba(255,105,12,0.4)] border border-white/20 pointer-events-none select-none z-20"
+              className="absolute -bottom-1 right-[-10px] md:-bottom-2 md:right-[-15px] inline-flex items-center justify-center bg-gradient-to-br from-[#ff690c] to-[#e55e0b] text-white px-3 py-1 md:px-4 md:py-1.5 rounded-[8px] text-[10px] md:text-[13px] font-bold tracking-widest uppercase shadow-[0_4px_14px_rgba(255,105,12,0.4)] border border-white/20 pointer-events-none select-none z-20"
               style={{ rotate: '-3deg' }}
             >
               &amp; EN TEMPS-RÉEL
