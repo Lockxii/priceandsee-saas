@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  password         String?
+  stripeCustomerId String?
+  plan             String    @default("FREE") // FREE, PRO, ENTERPRISE
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  products         Product[]
+}
+
+model Product {
+  id              String         @id @default(cuid())
+  url             String
+  title           String?
+  currentPrice    Float?
+  stockStatus     String?        // e.g., "In Stock", "Out of Stock"
+  promoText       String?
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  priceHistory    PriceHistory[]
+  alertSetting    AlertSetting?
+  scrapingJobs    ScrapingJob[]
+}
+
+model PriceHistory {
+  id        String   @id @default(cuid())
+  productId String
+  price     Float
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model AlertSetting {
+  id               String  @id @default(cuid())
+  productId        String  @unique
+  emailEnabled     Boolean @default(true)
+  slackEnabled     Boolean @default(false)
+  slackWebhookUrl  String?
+  product          Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ScrapingJob {
+  id           String   @id @default(cuid())
+  productId    String
+  status       String   // PENDING, SUCCESS, FAILED
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}

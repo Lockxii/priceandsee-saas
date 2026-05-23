@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PriceAndSee SaaS
 
-## Getting Started
+A production-ready SaaS for e-commerce competitor monitoring.
+Helps Shopify brands and Amazon sellers track competitor product pages automatically.
 
-First, run the development server:
+## Tech Stack
+- **Framework:** Next.js (App Router, Tailwind CSS)
+- **Database:** Neon PostgreSQL + Prisma
+- **Auth:** NextAuth (Credentials)
+- **Scraper:** Python + [Scrapling](https://github.com/D4Vinci/Scrapling)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Setup Instructions
+
+### 1. Database Configuration
+We use **Neon Postgres**. In the root of the `saas-app` directory, create a `.env` file:
+```env
+DATABASE_URL="postgresql://user:password@ep-cool-db.us-east-2.aws.neon.tech/neondb?sslmode=require"
+NEXTAUTH_SECRET="your-super-secret-key-for-jwt"
+NEXTAUTH_URL="http://localhost:3005"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Apply the database schema:
+```bash
+npx prisma db push
+# or npx prisma migrate dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Install Dependencies & Run
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Running the Scraper Worker
+The scraper requires Python to be installed. We use the powerful `Scrapling` library for anti-bot scraping.
 
-## Learn More
+First, set up a Python environment and install Scrapling:
+```bash
+pip install scrapling
+```
 
-To learn more about Next.js, take a look at the following resources:
+Then, you can run the Node scraper worker, which fetches URLs from the DB and feeds them to the Python scraper:
+```bash
+npx ts-node scraper/worker.ts
+```
+*(In production, you would run this via a Cron job (e.g., using GitHub Actions, Vercel Cron, or a background worker container) every few hours).*
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Vercel Deployment
+1. Import the `saas-app` folder to Vercel.
+2. Link your **Neon Postgres** database using the Vercel CLI or Dashboard.
+3. Add `NEXTAUTH_SECRET` in the Environment Variables.
+4. Deploy!
