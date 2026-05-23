@@ -135,6 +135,40 @@
   100% { transform: translateX(-33.333333%); }
 }
 
+@keyframes subtle-orange-shine {
+  0%, 78%, 100% {
+    background-position: 140% center;
+    filter: brightness(1);
+  }
+  84% {
+    background-position: 40% center;
+    filter: brightness(1.04);
+  }
+  90% {
+    background-position: -20% center;
+    filter: brightness(1.02);
+  }
+}
+
+.animate-subtle-orange-shine {
+  background-image: linear-gradient(
+    110deg,
+    #111111 0%,
+    #111111 42%,
+    rgba(255, 181, 122, 0.92) 48%,
+    rgba(255, 105, 12, 0.65) 50%,
+    rgba(255, 220, 183, 0.92) 52%,
+    #111111 58%,
+    #111111 100%
+  );
+  background-size: 220% auto;
+  background-position: 140% center;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: subtle-orange-shine 7.5s ease-in-out infinite;
+}
+
 .animate-marquee {
   animation: marquee 40s linear infinite;
 }

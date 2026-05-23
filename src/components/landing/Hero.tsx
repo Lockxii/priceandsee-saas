@@ -46,7 +46,7 @@ export function Hero() {
           className="text-[40px] sm:text-[48px] md:text-[50px] lg:text-[56px] font-[800] tracking-tight leading-[1.05] mb-8 relative z-10"
         >
           <span className="text-black relative inline-block md:whitespace-nowrap pr-2">
-            Trouvez les prix, stocks &amp; promotions
+            Trouvez <span className="animate-subtle-orange-shine">les prix</span>, stocks &amp; promotions
             
             {/* Badge floating overlapping the end of the text */}
             <motion.span 
