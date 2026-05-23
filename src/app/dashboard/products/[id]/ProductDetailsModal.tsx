@@ -238,6 +238,176 @@ function bundleLabel(bundle: BundlePrice) {
   return bundle.name.replace(/\s+/g, " ").trim();
 }
 
+function bundlePriceNumber(bundle: BundlePrice) {
+  if (typeof bundle.price === "number") return Number.isFinite(bundle.price) ? bundle.price : undefined;
+  const match = String(bundle.price).replace(/\s/g, "").match(/\d+(?:[.,]\d+)?/);
+  if (!match) return undefined;
+  const price = Number(match[0].replace(",", "."));
+  return Number.isFinite(price) ? price : undefined;
+}
+
+function inferBundleQuantity(bundle: BundlePrice) {
+  const optionText = bundle.options ? Object.values(bundle.options).map(String).join(" ") : "";
+  const text = `${bundle.name} ${optionText}`.toLowerCase();
+  const packMatch = text.match(/(?:^|\b)(\d+(?:[.,]\d+)?)\s*(?:x|pack|packs|pc|pcs|piece|pieces|unit|units|bottle|bottles|set|sets|lot|lots)\b/i);
+  const leadingMatch = text.match(/^\s*(\d+(?:[.,]\d+)?)(?:\s|-)/);
+  const raw = packMatch?.[1] || leadingMatch?.[1];
+  if (!raw) return undefined;
+  const quantity = Number(raw.replace(",", "."));
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : undefined;
+}
+
+function bundleOptionsText(bundle: BundlePrice) {
+  if (!bundle.options) return undefined;
+  const parts = Object.entries(bundle.options)
+    .map(([key, value]) => `${key.replace(/^option/i, "Option ")}: ${String(value)}`)
+    .slice(0, 3);
+  return parts.length ? parts.join(" · ") : undefined;
+}
+
+function formatBundleAmount(value: number | undefined, currency = "USD") {
+  if (value === undefined || !Number.isFinite(value)) return "—";
+  const amount = Number.isInteger(value) ? String(value) : value.toFixed(2);
+  return `${amount} ${currency}`;
+}
+
+function getVariantInsights(product: ProductDetails) {
+  const currency = product.currency || "USD";
+  const items = (product.bundlePrices || []).map((bundle) => {
+    const price = bundlePriceNumber(bundle);
+    const quantity = inferBundleQuantity(bundle);
+    return {
+      bundle,
+      price,
+      quantity,
+      unitPrice: price !== undefined && quantity ? price / quantity : price,
+      optionsText: bundleOptionsText(bundle),
+    };
+  });
+
+  const priced = items.filter((item) => item.price !== undefined);
+  const cheapest = priced.reduce<typeof priced[number] | undefined>((best, item) => !best || (item.price ?? Infinity) < (best.price ?? Infinity) ? item : best, undefined);
+  const bestValue = priced.reduce<typeof priced[number] | undefined>((best, item) => !best || (item.unitPrice ?? Infinity) < (best.unitPrice ?? Infinity) ? item : best, undefined);
+  const maxPrice = priced.reduce((max, item) => Math.max(max, item.price || 0), 0);
+  const minPrice = priced.reduce((min, item) => Math.min(min, item.price || Infinity), Infinity);
+  const spread = priced.length > 1 && Number.isFinite(minPrice) ? maxPrice - minPrice : undefined;
+  const availableCount = items.filter((item) => item.bundle.available !== false).length;
+  const optionKeys = Array.from(new Set(items.flatMap((item) => item.bundle.options ? Object.keys(item.bundle.options) : []))).slice(0, 5);
+  const singleUnit = priced.find((item) => item.quantity === 1);
+  const savings = singleUnit && bestValue?.unitPrice !== undefined ? ((singleUnit.unitPrice || 0) - bestValue.unitPrice) / (singleUnit.unitPrice || 1) * 100 : undefined;
+
+  return {
+    currency,
+    items: items.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity)),
+    priced,
+    cheapest,
+    bestValue,
+    maxPrice,
+    spread,
+    availableCount,
+    optionKeys,
+    savings: savings !== undefined && Number.isFinite(savings) ? savings : undefined,
+  };
+}
+
+function VariantsBundlesPanel({ product }: { product: ProductDetails }) {
+  const insights = getVariantInsights(product);
+  const visibleItems = insights.items.slice(0, 6);
+  const hiddenCount = Math.max(0, insights.items.length - visibleItems.length);
+  const bestLabel = insights.bestValue ? bundleLabel(insights.bestValue.bundle) : "—";
+
+  return (
+    <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between gap-3 mb-4 flex-shrink-0">
+        <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Layers3 className="w-4 h-4 text-[#ff690c]" />Variants & Bundles</h3>
+        <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{insights.items.length} detected</span>
+      </div>
+
+      {insights.items.length > 0 ? (
+        <>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 flex-shrink-0">
+            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
+              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Cheapest</p>
+              <p className="mt-1 text-lg font-black text-[#24170f]">{formatBundleAmount(insights.cheapest?.price, insights.currency)}</p>
+              <p className="text-xs text-[#8a7668] truncate">{insights.cheapest ? bundleLabel(insights.cheapest.bundle) : "No price"}</p>
+            </div>
+            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
+              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Best value</p>
+              <p className="mt-1 text-lg font-black text-[#24170f]">{formatBundleAmount(insights.bestValue?.unitPrice, insights.currency)}</p>
+              <p className="text-xs text-[#8a7668] truncate">per unit · {bestLabel}</p>
+            </div>
+            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
+              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Spread</p>
+              <p className="mt-1 text-lg font-black text-[#24170f]">{formatBundleAmount(insights.spread, insights.currency)}</p>
+              <p className="text-xs text-[#8a7668] truncate">highest vs lowest</p>
+            </div>
+            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
+              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Availability</p>
+              <p className="mt-1 text-lg font-black text-[#24170f]">{insights.availableCount}/{insights.items.length}</p>
+              <p className="text-xs text-[#8a7668] truncate">sellable options</p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 xl:grid-cols-5 gap-4 flex-1 min-h-0">
+            <div className="xl:col-span-3 rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                <p className="text-xs font-black uppercase tracking-wider text-[#24170f]">Price ladder</p>
+                {hiddenCount > 0 && <span className="text-xs font-bold text-[#8a7668]">+{hiddenCount} more</span>}
+              </div>
+              <div className="flex-1 min-h-0 flex flex-col justify-center gap-3">
+                {visibleItems.map((item, index) => {
+                  const width = item.price && insights.maxPrice ? Math.max(24, Math.round((item.price / insights.maxPrice) * 100)) : 18;
+                  return (
+                    <div key={`${bundleLabel(item.bundle)}-${index}`} className="rounded-xl border border-[#f1ded1] bg-white p-3 shadow-[0_1px_0_rgba(36,23,15,0.03)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-black text-[#5b4638] truncate">{bundleLabel(item.bundle)}</p>
+                          <p className="text-xs text-[#a99485] truncate">{item.optionsText || (item.quantity ? `${item.quantity} unit${item.quantity > 1 ? "s" : ""}` : item.bundle.sku ? `SKU ${item.bundle.sku}` : "Variant option")}</p>
+                        </div>
+                        <span className="font-black text-[#24170f] bg-[#fffaf6] px-3 py-1 rounded-lg border border-[#f1ded1] shadow-sm whitespace-nowrap">{formatBundleAmount(item.price, insights.currency)}</span>
+                      </div>
+                      <div className="mt-3 h-2 rounded-full bg-[#fffaf6] border border-[#f1ded1] overflow-hidden">
+                        <div className="h-full rounded-full bg-[#ff690c]" style={{ width: `${width}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="xl:col-span-2 grid grid-rows-2 gap-4 min-h-0">
+              <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden flex flex-col justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wider text-[#24170f]">Value signal</p>
+                  <p className="mt-2 text-2xl font-black text-[#ff690c] truncate">{bestLabel}</p>
+                  <p className="mt-1 text-sm text-[#8a7668]">{insights.savings && insights.savings > 0 ? `${Math.round(insights.savings)}% cheaper per unit than single pack.` : "No clear multi-pack discount detected."}</p>
+                </div>
+                <div className="mt-3 inline-flex w-max items-center gap-2 rounded-full border border-[#f1ded1] bg-white px-3 py-1 text-xs font-bold text-[#5b4638]"><CheckCircle2 className="w-3.5 h-3.5 text-[#ff690c]" />Best pick</div>
+              </div>
+
+              <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
+                <p className="text-xs font-black uppercase tracking-wider text-[#24170f]">Detected options</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(insights.optionKeys.length ? insights.optionKeys : ["Pack size", "Price", "Availability"]).map((option) => (
+                    <span key={option} className="rounded-full border border-[#f1ded1] bg-white px-3 py-1 text-xs font-bold text-[#5b4638]">{option}</span>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-[#8a7668] line-clamp-2">Captured from variants, bundle buttons, JSON offers or product widget data.</p>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
+          <Layers3 className="w-8 h-8 mb-2 opacity-50 text-[#ff690c]" />
+          <p className="font-bold text-[#24170f]">No variants or bundles detected yet.</p>
+          <p className="text-sm mt-1 max-w-md">Run a fresh scrape with the Railway backend healthy to capture variants, marketplace offers and bundle widgets.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -535,21 +705,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
 
                 {activeTab === "Variants" && (
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 h-full overflow-hidden">
-                    <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden">
-                      <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-5 flex items-center gap-2"><Layers3 className="w-4 h-4 text-[#ff690c]" />Variants & Bundles</h3>
-                      {product.bundlePrices && product.bundlePrices.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {product.bundlePrices.map((bundle, idx) => (
-                            <div key={idx} className="flex items-center justify-between gap-4 p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
-                              <div className="min-w-0"><span className="font-bold text-[#5b4638] block truncate">{bundleLabel(bundle)}</span>{bundle.sku && <span className="text-xs text-[#a99485]">SKU {bundle.sku}</span>}</div>
-                              <span className="font-black text-[#24170f] bg-white px-3 py-1 rounded border border-[#f1ded1] shadow-sm whitespace-nowrap">{bundle.price} {product.currency || "€"}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-12 text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed">No variants or bundles detected for this product.</div>
-                      )}
-                    </div>
+                    <VariantsBundlesPanel product={product} />
                     <BundleWidgetPreview product={product} />
                   </div>
                 )}
