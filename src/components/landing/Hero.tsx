@@ -6,7 +6,7 @@ import { ArrowRight, Star, Clock, TrendingUp } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pt-28 pb-32 md:pt-40 md:pb-40 w-full flex flex-col items-center border-b border-[#ebebeb]/60">
+    <section className="relative overflow-hidden min-h-[calc(100vh-70px)] pt-20 pb-20 w-full flex flex-col items-center justify-center border-b border-[#ebebeb]/60">
       
       {/* Background Grid Lines (Whoscale style) */}
       <div className="absolute inset-0 w-full h-full pointer-events-none z-0 flex justify-center">
@@ -48,12 +48,12 @@ export function Hero() {
           <span className="text-black relative inline-block md:whitespace-nowrap">
             Trouvez les prix, stocks &amp; promotions
             
-            {/* Badge floating correctly at the end of line 1 */}
+            {/* Badge floating overlapping the end of the text */}
             <motion.span 
               initial={{ opacity: 0, rotate: -15, scale: 0.8 }}
               animate={{ opacity: 1, rotate: -3, scale: 1 }}
               transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
-              className="absolute -bottom-3 -right-4 md:-bottom-5 md:-right-6 inline-flex items-center justify-center bg-gradient-to-br from-[#ff690c] to-[#e55e0b] text-white px-3 py-1 md:px-4 md:py-1.5 rounded-[8px] text-[10px] md:text-[13px] font-bold tracking-widest uppercase shadow-[0_4px_14px_rgba(255,105,12,0.4)] border border-white/20 pointer-events-none select-none z-20"
+              className="absolute -bottom-4 right-[10%] md:-bottom-6 md:right-[15%] inline-flex items-center justify-center bg-gradient-to-br from-[#ff690c] to-[#e55e0b] text-white px-3 py-1 md:px-4 md:py-1.5 rounded-[8px] text-[10px] md:text-[13px] font-bold tracking-widest uppercase shadow-[0_4px_14px_rgba(255,105,12,0.4)] border border-white/20 pointer-events-none select-none z-20"
               style={{ rotate: '-3deg' }}
             >
               &amp; EN TEMPS-RÉEL
@@ -62,7 +62,7 @@ export function Hero() {
           <br className="hidden md:block"/>
           
           <span className="text-black mt-2 inline-block">qui scalent </span>
-          <span className="italic font-serif font-medium text-[#474747] ml-2">en ce moment.</span>
+          <span className="italic font-medium text-[#474747] ml-2">en ce moment.</span>
         </motion.h1>
         
         <motion.p 
