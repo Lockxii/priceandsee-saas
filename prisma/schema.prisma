@@ -38,10 +38,12 @@ model Product {
   title           String?
   description     String?
   image           String?
+  productMedia    Json?
   brand           String?
   sku             String?
   rating          Float?
   reviewsCount    Int?
+  productReviews  Json?
   currency        String?
   bundlePrices    Json?
   bundleWidget    Json?

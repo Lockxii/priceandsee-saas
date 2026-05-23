@@ -307,6 +307,30 @@ def extract_product_from_node(node: dict[str, Any]) -> dict[str, Any]:
         data["rating"] = to_number(rating.get("ratingValue"))
         data["reviewsCount"] = to_int(rating.get("reviewCount") or rating.get("ratingCount"))
 
+    reviews = node.get("review")
+    if isinstance(reviews, dict):
+        reviews = [reviews]
+    if isinstance(reviews, list):
+        review_items = []
+        for review in reviews[:20]:
+            if not isinstance(review, dict):
+                continue
+            author = review.get("author")
+            if isinstance(author, dict):
+                author = author.get("name")
+            review_rating = review.get("reviewRating")
+            rating_value = review_rating.get("ratingValue") if isinstance(review_rating, dict) else None
+            review_items.append(compact({
+                "author": clean_text(author),
+                "title": clean_text(review.get("name") or review.get("headline")),
+                "body": clean_text(review.get("reviewBody") or review.get("description")),
+                "rating": parse_rating(rating_value),
+                "date": clean_text(review.get("datePublished")),
+                "source": "json-ld",
+            }))
+        if review_items:
+            data["productReviews"] = unique(review_items)[:20]
+
     return compact(data)
 
 
@@ -966,6 +990,90 @@ def extract_bundle_widget(page: Any, base_url: str) -> dict[str, Any] | None:
     })
 
 
+def is_probably_product_image(url: str) -> bool:
+    lowered = url.lower()
+    if not url or url.startswith(("data:", "blob:", "javascript:", "mailto:", "tel:")):
+        return False
+    if any(token in lowered for token in ["sprite", "icon", "logo", "avatar", "placeholder", "blank", "loading", "pixel", "tracking", "badge", "payment", "flag"]):
+        return False
+    if not re.search(r"\.(?:png|jpe?g|webp|gif|avif)(?:\?|$)", lowered) and not any(token in lowered for token in ["cdn.shopify.com", "images", "image", "product", "media"]):
+        return False
+    return True
+
+
+def image_item(url: str, base_url: str, source: str, alt: str | None = None) -> dict[str, Any] | None:
+    absolute = absolutize_url(url, base_url)
+    if not is_probably_product_image(absolute):
+        return None
+    return compact({"url": absolute, "alt": alt, "source": source, "type": "image"})
+
+
+def extract_product_media(page: Any, base_url: str, primary_image: str | None = None) -> list[dict[str, Any]]:
+    media: list[dict[str, Any]] = []
+    if primary_image:
+        item = image_item(primary_image, base_url, "primary", "Primary product image")
+        if item:
+            media.append(item)
+
+    selectors = [
+        'meta[property="og:image"]::attr(content)', 'meta[name="twitter:image"]::attr(content)',
+        '[itemprop="image"]::attr(content)', '[itemprop="image"]::attr(src)',
+        '.product img::attr(src)', '.product-media img::attr(src)', '.product-gallery img::attr(src)', '.product__media img::attr(src)',
+        '.product-single__media img::attr(src)', '.productView-image img::attr(src)', '.woocommerce-product-gallery__image img::attr(src)',
+        '.gallery img::attr(src)', '[class*="gallery"] img::attr(src)', '[class*="carousel"] img::attr(src)', 'main img::attr(src)',
+        'img::attr(data-src)', 'img::attr(data-original)', 'img::attr(src)',
+    ]
+    for selector in selectors:
+        for value in all_css(page, selector, limit=80):
+            item = image_item(value, base_url, selector)
+            if item:
+                media.append(item)
+
+    for srcset in all_css(page, "img::attr(srcset)", limit=80):
+        candidates = []
+        for part in srcset.split(","):
+            bits = part.strip().split()
+            if bits:
+                candidates.append(bits[0])
+        if candidates:
+            item = image_item(candidates[-1], base_url, "srcset")
+            if item:
+                media.append(item)
+
+    return unique(media)[:30]
+
+
+REVIEW_CARD_SELECTORS = [
+    '[data-hook="review"]', '[data-review-id]', '[itemprop="review"]', '.review', '.reviews .card', '.jdgm-rev', '.spr-review', '.yotpo-review', '.loox-review', '[class*="review-item"]', '[class*="ReviewItem"]'
+]
+
+
+def extract_product_reviews(page: Any) -> list[dict[str, Any]]:
+    reviews: list[dict[str, Any]] = []
+    for selector in REVIEW_CARD_SELECTORS:
+        for markup in raw_css_values(page, selector, limit=30):
+            text = markup_text(markup)
+            if not text or len(text) < 18:
+                continue
+            lowered = text.lower()
+            if not any(token in lowered for token in ["review", "star", "stars", "avis", "rated", "rating", "verified", "recommend", "love", "great", "excellent"]):
+                continue
+            rating = parse_rating(text)
+            date_match = re.search(r"\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4})\b", text, flags=re.I)
+            reviews.append(compact({"body": text[:700], "rating": rating, "date": date_match.group(0) if date_match else None, "source": selector}))
+        if len(reviews) >= 12:
+            break
+    return unique(reviews)[:20]
+
+
+def enrich_reviews_from_counts(existing: list[dict[str, Any]], rating: float | None, reviews_count: int | None) -> list[dict[str, Any]]:
+    if existing:
+        return existing
+    if rating is None and reviews_count is None:
+        return []
+    return [compact({"rating": rating, "count": reviews_count, "source": "aggregate-rating"})]
+
+
 def extract_shopify_variants(page: Any) -> list[dict[str, Any]]:
     variants: list[dict[str, Any]] = []
     scripts = all_css(page, 'script[type="application/json"]::text', limit=40)
@@ -1066,6 +1174,15 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
     bundle_widget = extract_bundle_widget(page, url)
     if bundle_widget:
         data["bundleWidget"] = bundle_widget
+
+    media = extract_product_media(page, url, data.get("image"))
+    if media:
+        data["productMedia"] = media
+
+    reviews = extract_product_reviews(page)
+    reviews = enrich_reviews_from_counts(reviews, data.get("rating"), data.get("reviewsCount"))
+    if reviews:
+        data["productReviews"] = data.get("productReviews") or reviews
 
     data["brandSignals"] = extract_brand_signals(page, url, fetcher_used, raw)
     if adapter_info.get("platform") and not data["brandSignals"].get("platform"):

@@ -22,9 +22,27 @@ type JsonLdProduct = JsonRecord & {
   description?: string;
   sku?: string;
   mpn?: string;
-  image?: string | string[];
+  image?: string | string[] | JsonRecord | JsonRecord[];
   brand?: string | { name?: string };
-  aggregateRating?: { ratingValue?: string | number; reviewCount?: string | number };
+  aggregateRating?: { ratingValue?: string | number; reviewCount?: string | number; ratingCount?: string | number };
+  review?: JsonRecord | JsonRecord[];
+};
+
+type ProductMedia = {
+  url: string;
+  alt?: string;
+  source?: string;
+  type?: string;
+};
+
+type ProductReview = {
+  author?: string;
+  title?: string;
+  body?: string;
+  rating?: number;
+  date?: string;
+  source?: string;
+  count?: number;
 };
 
 type BundlePrice = {
@@ -66,6 +84,8 @@ type ExtractedProduct = {
   rating?: number;
   reviewsCount?: number;
   currency?: string;
+  productMedia?: ProductMedia[];
+  productReviews?: ProductReview[];
   bundlePrices?: BundlePrice[];
   bundleWidget?: BundleWidget;
   brandSignals?: JsonRecord;
@@ -119,6 +139,73 @@ function parsePrice(value?: string | number | null) {
   return Number.isFinite(price) ? price : undefined;
 }
 
+function parseRatingValue(value: unknown) {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  const match = String(value).match(/\d+(?:[.,]\d+)?/);
+  if (!match) return undefined;
+  const rating = Number(match[0].replace(",", "."));
+  if (!Number.isFinite(rating)) return undefined;
+  if (rating >= 0 && rating <= 5) return rating;
+  if (rating > 5 && rating <= 100 && String(value).includes("%")) return Number((rating / 20).toFixed(2));
+  return undefined;
+}
+
+function parseIntegerValue(value: unknown) {
+  if (value === null || value === undefined) return undefined;
+  const match = String(value).match(/\d[\d\s,.]*/);
+  if (!match) return undefined;
+  const integer = Number.parseInt(match[0].replace(/[^0-9]/g, ""), 10);
+  return Number.isFinite(integer) ? integer : undefined;
+}
+
+function jsonLdText(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number") return decodeHtml(String(value));
+  if (isRecord(value)) {
+    return jsonLdText(value.name) || jsonLdText(value.url) || jsonLdText(value.contentUrl) || jsonLdText(value.src);
+  }
+  return undefined;
+}
+
+function jsonLdImageUrls(value: JsonLdProduct["image"]): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  const urls = values
+    .map((item) => jsonLdText(item))
+    .filter((item): item is string => Boolean(item));
+  return Array.from(new Set(urls)).slice(0, 30);
+}
+
+function jsonLdReviews(value: JsonLdProduct["review"], aggregateRating?: JsonLdProduct["aggregateRating"]): ProductReview[] | undefined {
+  const rawReviews = value ? (Array.isArray(value) ? value : [value]) : [];
+  const reviews = rawReviews
+    .map((review): ProductReview | null => {
+      if (!isRecord(review)) return null;
+      const author = review.author;
+      const reviewRating = isRecord(review.reviewRating) ? review.reviewRating : undefined;
+      const rating = parseRatingValue(reviewRating?.ratingValue ?? review.ratingValue ?? review.rating);
+      const body = jsonLdText(review.reviewBody) || jsonLdText(review.description) || jsonLdText(review.text);
+      const title = jsonLdText(review.name) || jsonLdText(review.headline);
+      if (!body && !title && rating === undefined) return null;
+      return {
+        author: jsonLdText(author),
+        title,
+        body,
+        rating,
+        date: jsonLdText(review.datePublished) || jsonLdText(review.dateCreated),
+        source: "json-ld",
+      };
+    })
+    .filter((review): review is ProductReview => review !== null);
+
+  const aggregateRatingValue = parseRatingValue(aggregateRating?.ratingValue);
+  const aggregateCount = parseIntegerValue(aggregateRating?.reviewCount ?? aggregateRating?.ratingCount);
+  if (!reviews.length && (aggregateRatingValue !== undefined || aggregateCount !== undefined)) {
+    reviews.push({ rating: aggregateRatingValue, count: aggregateCount, source: "aggregate-rating" });
+  }
+
+  return reviews.length ? reviews.slice(0, 30) : undefined;
+}
+
 function extractJsonLd(html: string): ExtractedProduct {
   const scripts = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
 
@@ -137,6 +224,11 @@ function extractJsonLd(html: string): ExtractedProduct {
       const productData = product as JsonLdProduct;
       const offers = Array.isArray(productData.offers) ? productData.offers[0] : productData.offers;
       const availability = String(offers?.availability || "").toLowerCase();
+      const imageUrls = jsonLdImageUrls(productData.image);
+      const image = imageUrls[0];
+      const rating = parseRatingValue(productData.aggregateRating?.ratingValue);
+      const reviewsCount = parseIntegerValue(productData.aggregateRating?.reviewCount ?? productData.aggregateRating?.ratingCount);
+      const productReviews = jsonLdReviews(productData.review, productData.aggregateRating);
 
       let bundlePrices: BundlePrice[] | undefined;
       if (Array.isArray(productData.offers) && productData.offers.length > 1) {
@@ -159,10 +251,12 @@ function extractJsonLd(html: string): ExtractedProduct {
             : undefined,
         description: productData.description ? decodeHtml(String(productData.description)) : undefined,
         sku: productData.sku || productData.mpn,
-        image: Array.isArray(productData.image) ? productData.image[0] : (typeof productData.image === "string" ? productData.image : undefined),
+        image,
+        productMedia: asProductMedia(imageUrls, image),
         brand: typeof productData.brand === "object" ? productData.brand?.name : productData.brand,
-        rating: productData.aggregateRating?.ratingValue ? Number(productData.aggregateRating.ratingValue) : undefined,
-        reviewsCount: productData.aggregateRating?.reviewCount ? Number(productData.aggregateRating.reviewCount) : undefined,
+        rating,
+        reviewsCount,
+        productReviews,
         bundlePrices: bundlePrices?.length ? bundlePrices : undefined
       };
     } catch {
@@ -199,17 +293,21 @@ export function extractProductData(html: string): ExtractedProduct {
     matchContent(html, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ||
     matchContent(html, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
 
+  const image = jsonLd.image || matchContent(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+
   return {
     title: jsonLd.title || metaTitle,
     price: jsonLd.price ?? parsePrice(metaPrice),
     stockStatus,
     promoText: promoText?.slice(0, 240),
     description: jsonLd.description || promoText,
-    image: jsonLd.image || matchContent(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i),
+    image,
+    productMedia: jsonLd.productMedia || asProductMedia(undefined, image),
     brand: jsonLd.brand || matchContent(html, /<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i),
     sku: jsonLd.sku,
     rating: jsonLd.rating,
     reviewsCount: jsonLd.reviewsCount,
+    productReviews: jsonLd.productReviews,
     currency: jsonLd.currency || matchContent(html, /<meta[^>]+property=["']product:price:currency["'][^>]+content=["']([^"']+)["']/i),
     bundlePrices: jsonLd.bundlePrices
   };
@@ -240,6 +338,58 @@ function asBundlePrices(value: unknown): BundlePrice[] | undefined {
     })
     .filter((item): item is BundlePrice => item !== null);
   return bundles.length ? bundles : undefined;
+}
+
+function asProductMedia(value: unknown, primaryImage?: string): ProductMedia[] | undefined {
+  const items: ProductMedia[] = [];
+  if (primaryImage) items.push({ url: primaryImage, alt: "Primary product image", source: "primary", type: "image" });
+  if (Array.isArray(value)) {
+    value.forEach((item) => {
+      if (typeof item === "string") {
+        items.push({ url: item, type: "image" });
+        return;
+      }
+      if (!isRecord(item)) return;
+      const url = asString(item.url) || asString(item.src) || asString(item.image);
+      if (!url) return;
+      items.push({
+        url,
+        alt: asString(item.alt),
+        source: asString(item.source),
+        type: asString(item.type) || "image",
+      });
+    });
+  }
+  const seen = new Set<string>();
+  const unique = items.filter((item) => {
+    if (!item.url || seen.has(item.url)) return false;
+    seen.add(item.url);
+    return true;
+  });
+  return unique.length ? unique.slice(0, 30) : undefined;
+}
+
+function asProductReviews(value: unknown): ProductReview[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const reviews = value
+    .map((item): ProductReview | null => {
+      if (!isRecord(item)) return null;
+      const body = asString(item.body) || asString(item.text) || asString(item.reviewBody) || asString(item.description);
+      const count = item.count !== undefined && Number.isFinite(Number(item.count)) ? Number(item.count) : undefined;
+      const rating = item.rating !== undefined && Number.isFinite(Number(item.rating)) ? Number(item.rating) : undefined;
+      if (!body && rating === undefined && count === undefined) return null;
+      return {
+        author: asString(item.author) || asString(item.name),
+        title: asString(item.title) || asString(item.headline),
+        body,
+        rating,
+        date: asString(item.date) || asString(item.datePublished),
+        source: asString(item.source),
+        count,
+      };
+    })
+    .filter((item): item is ProductReview => item !== null);
+  return reviews.length ? reviews.slice(0, 30) : undefined;
 }
 
 function asBundleWidget(value: unknown): BundleWidget | undefined {
@@ -294,6 +444,8 @@ function normalizeScraperData(data: JsonRecord): ExtractedProduct {
     rating: Number.isFinite(rating) ? rating : undefined,
     reviewsCount: reviewsCount !== undefined && Number.isFinite(Number(reviewsCount)) ? Number(reviewsCount) : undefined,
     currency: asString(data.currency),
+    productMedia: asProductMedia(data.productMedia || data.product_media || data.media || data.images, asString(data.image)),
+    productReviews: asProductReviews(data.productReviews || data.product_reviews || data.reviews),
     bundlePrices: asBundlePrices(data.bundlePrices || data.bundle_prices),
     bundleWidget: asBundleWidget(data.bundleWidget || data.bundle_widget),
     brandSignals: typeof data.brandSignals === "object" && data.brandSignals ? data.brandSignals as JsonRecord : (typeof data.brand_signals === "object" && data.brand_signals ? data.brand_signals as JsonRecord : undefined),
@@ -484,6 +636,8 @@ export async function scrapeProduct(productId: string, options: ScrapeProductOpt
           rating: extracted.rating ?? product.rating,
           reviewsCount: extracted.reviewsCount ?? product.reviewsCount,
           currency: extracted.currency || product.currency,
+          productMedia: toPrismaJson(extracted.productMedia || product.productMedia),
+          productReviews: toPrismaJson(extracted.productReviews || product.productReviews),
           bundlePrices: toPrismaJson(extracted.bundlePrices || product.bundlePrices),
           bundleWidget: toPrismaJson(extracted.bundleWidget || product.bundleWidget),
           brandMetrics: toPrismaJson(mergeBrandMetrics(product.brandMetrics, brandMetrics)),

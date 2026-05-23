@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2, Copy, Check } from "lucide-react";
+import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2, Copy, Check, Download, Images, MessageSquareText, FileDown } from "lucide-react";
 import VisitHistoryChart, { type TrafficCountry } from "./VisitHistoryChart";
 import CompetitorRevenueChart, { type CompetitorRevenueSeries } from "./CompetitorRevenueChart";
 
@@ -30,6 +30,23 @@ type BrandMetrics = JsonRecord & {
   traffic_countries?: TrafficCountry[];
   top_countries?: TrafficCountry[];
   countries?: TrafficCountry[];
+};
+
+type ProductMedia = {
+  url: string;
+  alt?: string;
+  source?: string;
+  type?: string;
+};
+
+type ProductReview = {
+  author?: string;
+  title?: string;
+  body?: string;
+  rating?: number;
+  date?: string;
+  source?: string;
+  count?: number;
 };
 
 type BundlePrice = {
@@ -81,6 +98,8 @@ type ProductDetails = {
   sku?: string | null;
   rating?: number | null;
   reviewsCount?: number | null;
+  productMedia?: ProductMedia[] | null;
+  productReviews?: ProductReview[] | null;
   bundlePrices?: BundlePrice[] | null;
   bundleWidget?: BundleWidget | null;
   scrapingJobs?: ScrapingJob[];
@@ -480,6 +499,127 @@ function htmlToPlainText(markup: string) {
   return div.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
+function downloadAssetUrl(url: string, name: string) {
+  return `/api/assets/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`;
+}
+
+function reviewsToCsv(reviews: ProductReview[]) {
+  const rows = [["rating", "author", "title", "body", "date", "source", "count"]];
+  reviews.forEach((review) => rows.push([
+    review.rating?.toString() || "",
+    review.author || "",
+    review.title || "",
+    review.body || "",
+    review.date || "",
+    review.source || "",
+    review.count?.toString() || "",
+  ]));
+  return rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+}
+
+function downloadTextFile(filename: string, content: string, type = "text/plain") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function ProductAssetsPanel({ product }: { product: ProductDetails }) {
+  const [copiedReviews, setCopiedReviews] = useState(false);
+  const media = product.productMedia?.length ? product.productMedia : product.image ? [{ url: product.image, alt: product.title || "Product image", source: "primary", type: "image" }] : [];
+  const reviews = product.productReviews || [];
+  const reviewsCsv = reviewsToCsv(reviews);
+
+  const copyReviews = async () => {
+    await navigator.clipboard.writeText(reviewsCsv);
+    setCopiedReviews(true);
+    window.setTimeout(() => setCopiedReviews(false), 1400);
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-5 h-full overflow-hidden">
+      <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
+        <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Images className="w-4 h-4 text-[#ff690c]" />Product images</h3>
+            <p className="text-sm text-[#8a7668] mt-2">Download scraped product media. No generated assets.</p>
+          </div>
+          <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{media.length} files</span>
+        </div>
+
+        {media.length ? (
+          <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 flex-1 min-h-0 content-start overflow-hidden">
+            {media.slice(0, 9).map((item, index) => (
+              <div key={`${item.url}-${index}`} className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-2 overflow-hidden">
+                <div className="aspect-square rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
+                  <img src={item.url} alt={item.alt || `Product media ${index + 1}`} className="h-full w-full object-contain" />
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="min-w-0 truncate text-xs font-bold text-[#8a7668]">{item.source || item.type || "image"}</p>
+                  <a href={downloadAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} className="inline-flex items-center gap-1 rounded-lg bg-[#24170f] px-2 py-1 text-[11px] font-black text-[#fffaf6] hover:bg-[#3a281d]">
+                    <Download className="w-3 h-3" />Download
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
+            <Images className="w-8 h-8 mb-2 opacity-50 text-[#ff690c]" />
+            <p className="font-bold text-[#24170f]">No product media captured yet.</p>
+            <p className="text-sm mt-1 max-w-md">Run a fresh scrape to collect product gallery images.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
+        <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
+          <div>
+            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><MessageSquareText className="w-4 h-4 text-[#ff690c]" />Reviews export</h3>
+            <p className="text-sm text-[#8a7668] mt-2">Export scraped review snippets / aggregate rating.</p>
+          </div>
+          <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{reviews.length}</span>
+        </div>
+
+        <div className="flex gap-2 flex-shrink-0 mb-4">
+          <button onClick={copyReviews} disabled={!reviews.length} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#24170f] text-[#fffaf6] text-xs font-black hover:bg-[#3a281d] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            {copiedReviews ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copiedReviews ? "Copied" : "Copy CSV"}
+          </button>
+          <button onClick={() => downloadTextFile(`${product.title || "product"}-reviews.csv`, reviewsCsv, "text/csv")} disabled={!reviews.length} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#f1ded1] bg-[#fffaf6] text-[#24170f] text-xs font-black hover:text-[#ff690c] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <FileDown className="w-3.5 h-3.5" />Export
+          </button>
+        </div>
+
+        {reviews.length ? (
+          <div className="flex-1 min-h-0 space-y-3 overflow-hidden">
+            {reviews.slice(0, 6).map((review, index) => (
+              <div key={index} className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-black text-sm text-[#24170f] truncate">{review.title || review.author || `Review ${index + 1}`}</p>
+                  <span className="text-xs font-black text-[#ff690c] whitespace-nowrap">{review.rating ? `${review.rating}/5` : review.count ? `${review.count} total` : "—"}</span>
+                </div>
+                {review.body && <p className="mt-2 text-xs text-[#5b4638] line-clamp-3">{review.body}</p>}
+                <p className="mt-2 text-[11px] font-semibold text-[#a99485] truncate">{review.date || review.source || "scraped"}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
+            <MessageSquareText className="w-8 h-8 mb-2 opacity-50 text-[#ff690c]" />
+            <p className="font-bold text-[#24170f]">No reviews captured yet.</p>
+            <p className="text-sm mt-1 max-w-md">Run a fresh scrape to collect reviews when the page exposes them.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TrafficSnapshotPanel({ visits, revenue, countries, currency }: { visits?: number; revenue?: number; countries: TrafficCountry[]; currency: string }) {
   const hasSignals = visits !== undefined || revenue !== undefined || countries.length > 0;
 
@@ -777,7 +917,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
             </div>
 
             <div className="bg-[#fffaf6] px-5 sm:px-8 flex gap-4 sm:gap-8 border-b border-[#f1ded1] flex-shrink-0">
-              {["Overview", "Variants", "Competitors", "Activity"].map((tab) => (
+              {["Overview", "Variants", "Assets", "Competitors", "Activity"].map((tab) => (
                 <button 
                   key={tab} 
                   onClick={() => setActiveTab(tab)}
@@ -858,6 +998,10 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                     <VariantsBundlesPanel product={product} />
                     <BundleWidgetPreview product={product} />
                   </div>
+                )}
+
+                {activeTab === "Assets" && (
+                  <ProductAssetsPanel product={product} />
                 )}
 
                 {activeTab === "Competitors" && (
