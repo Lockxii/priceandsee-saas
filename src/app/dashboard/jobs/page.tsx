@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 
 export default async function ScrapeJobsPage() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   const jobs = await prisma.scrapingJob.findMany({
     where: { product: { userId } },

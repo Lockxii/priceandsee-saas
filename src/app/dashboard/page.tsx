@@ -1,14 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Activity, AlertTriangle, Link as LinkIcon, TrendingDown } from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardOverview() {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   const productsCount = await prisma.product.count({ where: { userId } });
   const recentJobs = await prisma.scrapingJob.findMany({

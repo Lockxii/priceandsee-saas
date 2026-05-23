@@ -1,16 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink, Bell, Settings2 } from "lucide-react";
 import Link from "next/link";
 import PriceChart from "./PriceChart";
 
 export default async function ProductDetails({ params }: { params: { id: string } }) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
   const product = await prisma.product.findUnique({
-    where: { id: params.id, userId: (session.user as any).id },
+    where: { id: params.id, userId: session.user.id },
     include: {
       priceHistory: { orderBy: { createdAt: 'asc' } },
       alertSetting: true,
