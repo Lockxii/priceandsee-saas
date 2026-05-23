@@ -49,13 +49,13 @@ export default function Home() {
       </main>
 
       {/* Massive Brand Wordmark Section */}
-      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-10 relative select-none pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/35 to-white z-10" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,105,12,0.05),transparent_55%)]" />
+      <div className="w-full bg-white overflow-hidden flex justify-center items-end pt-20 relative select-none pointer-events-none">
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white via-white/80 to-transparent z-10" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,105,12,0.045),transparent_58%)]" />
         <h2
           aria-hidden="true"
-          className="text-[15vw] leading-[0.82] font-black uppercase tracking-[-0.04em] relative z-0 text-[rgba(255,255,255,0.92)]"
-          style={{ WebkitTextStroke: '1px rgba(255, 105, 12, 0.18)' }}
+          className="text-[16vw] leading-[0.78] font-black uppercase tracking-[-0.055em] relative z-0 text-white/95"
+          style={{ WebkitTextStroke: '1.25px rgba(255, 105, 12, 0.34)' }}
         >
           PRICEANDSEE
         </h2>
