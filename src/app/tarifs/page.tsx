@@ -29,12 +29,12 @@ export default function TarifsPage() {
           <div className="text-center mb-16">
             <span className="text-[#ff690c] font-bold text-[14px] uppercase tracking-wider mb-4 block">Tarif</span>
             <h1 className="text-[40px] md:text-[64px] font-bold text-[#35251c] tracking-tight leading-[1.05] mb-6">
-              La page complète pour comparer
+              Une tarification simple pour
               <br className="hidden md:block" />
-              tous les plans sereinement
+              surveiller vos concurrents
             </h1>
             <p className="text-[18px] text-[#474747] max-w-[760px] mx-auto leading-relaxed">
-              Choisissez un plan selon votre volume d'URLs, votre fréquence de monitoring et vos besoins en alertes ou exports.
+              Une première offre à 19€/mois pour suivre 10 URLs concurrentes, puis des plans plus rapides quand votre catalogue grandit.
             </p>
           </div>
 
@@ -66,7 +66,7 @@ export default function TarifsPage() {
                   <span className="text-[15px] font-medium text-[#888] pb-2">/mois</span>
                 </div>
                 <p className="text-[13px] text-[#888] mb-8">
-                  Soit {plan.yearlyPrice}€/mois en facturation annuelle.
+                  Passe à {plan.yearlyPrice}€/mois avec la facturation annuelle.
                 </p>
 
                 <Link href="/register" className="w-full mb-8">
