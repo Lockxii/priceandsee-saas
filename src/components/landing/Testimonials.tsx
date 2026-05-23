@@ -8,36 +8,31 @@ const row1 = [
     name: "Thomas L.",
     role: "Fondateur E-commerce",
     text: "Incroyable. J'ai été alerté d'une baisse de prix de mon plus gros concurrent un dimanche. J'ai ajusté mon Shopify direct, j'ai récupéré 3 ventes dans la journée.",
-    initials: "TL",
-    color: "bg-blue-100 text-blue-600"
+    image: "https://randomuser.me/api/portraits/men/32.jpg"
   },
   {
     name: "Sarah M.",
     role: "Gérante de boutique",
     text: "Avant, je passais mes lundis matins à vérifier les stocks de mes concurrents à la main. Maintenant, c'est Slack qui me prévient.",
-    initials: "SM",
-    color: "bg-emerald-100 text-emerald-600"
+    image: "https://randomuser.me/api/portraits/women/44.jpg"
   },
   {
     name: "Julien P.",
     role: "Dropshipper",
     text: "Très propre. Pas d'usine à gaz, juste les données dont on a besoin en temps réel. Rentabilisé dès le premier mois.",
-    initials: "JP",
-    color: "bg-purple-100 text-purple-600"
+    image: "https://randomuser.me/api/portraits/men/46.jpg"
   },
   {
     name: "Alexandre",
     role: "Tech Lead",
     text: "Le bypass antibot est bluffant. J'essayais de scraper un gros site depuis des mois, PriceAndSee le fait sans broncher.",
-    initials: "A",
-    color: "bg-amber-100 text-amber-600"
+    image: "https://randomuser.me/api/portraits/men/22.jpg"
   },
   {
     name: "Marine",
     role: "CEO",
     text: "Le pricing est ultra honnête vu la valeur apportée. Ça fait exactement ce qu'on lui demande.",
-    initials: "M",
-    color: "bg-rose-100 text-rose-600"
+    image: "https://randomuser.me/api/portraits/women/68.jpg"
   }
 ];
 
@@ -46,36 +41,31 @@ const row2 = [
     name: "Nicolas D.",
     role: "Seller Amazon",
     text: "Je l'ai branché sur mes 50 top produits. Ça m'a permis d'identifier une tendance de promos récurrentes chez mon concurrent principal.",
-    initials: "ND",
-    color: "bg-indigo-100 text-indigo-600"
+    image: "https://randomuser.me/api/portraits/men/11.jpg"
   },
   {
     name: "Emma",
     role: "CMO",
     text: "Support hyper réactif et interface intuitive. On a pu onboarder toute l'équipe marketing en 10 minutes chrono.",
-    initials: "E",
-    color: "bg-teal-100 text-teal-600"
+    image: "https://randomuser.me/api/portraits/women/33.jpg"
   },
   {
     name: "Lucas B.",
     role: "Brand Manager",
     text: "Ça marche tout seul. On a connecté l'alerte Slack, et toute la boîte voit en direct quand un concurrent bouge ses prix.",
-    initials: "LB",
-    color: "bg-orange-100 text-orange-600"
+    image: "https://randomuser.me/api/portraits/men/85.jpg"
   },
   {
     name: "Antoine",
     role: "Directeur E-commerce",
     text: "Le meilleur investissement de l'année. L'historique des prix est une mine d'or absolue pour nos périodes de soldes.",
-    initials: "A",
-    color: "bg-cyan-100 text-cyan-600"
+    image: "https://randomuser.me/api/portraits/men/60.jpg"
   },
   {
     name: "Chloé F.",
     role: "Webmarketeuse",
     text: "Simple, efficace, direct. Les alertes mails m'ont évité de rater des ventes vitales pendant le Black Friday.",
-    initials: "CF",
-    color: "bg-pink-100 text-pink-600"
+    image: "https://randomuser.me/api/portraits/women/12.jpg"
   }
 ];
 
@@ -91,9 +81,11 @@ function ReviewCard({ review }: { review: any }) {
         "{review.text}"
       </p>
       <div className="flex items-center gap-3 pt-2 border-t border-[#ebebeb]/60">
-        <div className={clsx("w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px]", review.color)}>
-          {review.initials}
-        </div>
+        <img 
+          src={review.image} 
+          alt={review.name}
+          className="w-10 h-10 rounded-full object-cover border border-[#ebebeb]"
+        />
         <div>
           <div className="font-bold text-black text-[14px]">{review.name}</div>
           <div className="text-[13px] text-[#888]">{review.role}</div>
@@ -118,7 +110,7 @@ export function Testimonials() {
       </div>
 
       {/* Tilted container for the marquees */}
-      <div className="w-full flex flex-col gap-6 relative" style={{ transform: "rotate(-3deg) scale(1.05)" }}>
+      <div className="w-full flex flex-col gap-6 relative" style={{ transform: "rotate(1.5deg) scale(1.05)" }}>
         
         {/* Row 1: Right to Left */}
         <div className="flex w-[max-content] animate-marquee">
