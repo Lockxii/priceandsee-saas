@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronUp, CreditCard, LogOut, Shield, User, Users } from "lucide-react";
+import { ChevronUp, CreditCard, LogOut, Shield, Settings } from "lucide-react";
 
 type AccountMenuProps = {
   email: string;
@@ -35,8 +35,7 @@ export function AccountMenu({ email, name, role = "USER", plan = "FREE" }: Accou
   const displayName = firstName(email, name);
 
   const items = [
-    { label: "Profile", href: "/dashboard/settings", icon: User },
-    { label: "Team", href: "/dashboard/settings", icon: Users },
+    { label: "Settings", href: "?settings=true", icon: Settings },
     { label: "Plans", href: "/tarifs", icon: CreditCard },
     ...(isAdmin ? [{ label: "Admin", href: "/admin", icon: Shield }] : []),
   ];

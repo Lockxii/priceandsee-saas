@@ -6,6 +6,8 @@ import { LayoutDashboard, Link as LinkIcon, Settings, Activity, Zap } from "luci
 import { prisma } from "@/lib/prisma";
 import { GuidedTour } from "./GuidedTour";
 import { AccountMenu } from "./AccountMenu";
+import { SettingsModalRenderer } from "./SettingsModalRenderer";
+import { revalidatePath } from "next/cache";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -16,11 +18,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { onboardingCompleted: true, role: true, plan: true, name: true, email: true },
+    select: { onboardingCompleted: true, role: true, plan: true, name: true, email: true, createdAt: true },
   });
 
+  async function updateProfileAction(formData: FormData) {
+    "use server";
+    const session = await getServerSession(authOptions);
+    if (!session) return;
+    const name = formData.get("name") as string;
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { name },
+    });
+    revalidatePath("/");
+  }
+
   return (
-    <div className="min-h-screen bg-[#fffaf6] flex">
+    <div className="h-screen overflow-hidden bg-[#fffaf6] flex">
       {/* Sidebar */}
       <aside className="w-[280px] bg-white border-r border-[#f1ded1] flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-[#f1ded1]">
@@ -43,10 +57,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Link href="/dashboard/jobs" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
             <Activity className="w-5 h-5" />
             <span className="font-medium">Scrape Jobs</span>
-          </Link>
-          <Link href="/dashboard/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
-            <Settings className="w-5 h-5" />
-            <span className="font-medium">Settings</span>
           </Link>
         </nav>
         <div className="p-4 border-t border-[#f1ded1]">
@@ -72,6 +82,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </main>
       <GuidedTour show={!user?.onboardingCompleted} />
+      <SettingsModalRenderer user={user} updateProfileAction={updateProfileAction} />
     </div>
   );
 }

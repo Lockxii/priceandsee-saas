@@ -31,12 +31,15 @@ export function AlertSettingsClient() {
 
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-white w-full max-w-2xl sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
-            <div className="px-6 py-4 border-b border-[#f1ded1] flex justify-between items-center bg-[#fffaf6]">
+          <div className="bg-white w-full max-w-4xl sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
+            <div className="px-6 py-4 border-b border-[#f1ded1] flex justify-between items-center bg-[#fffaf6] group cursor-default">
               <h3 className="font-semibold text-lg text-[#24170f]">Alert Destinations</h3>
-              <button onClick={() => setIsOpen(false)} className="text-[#8a7668] hover:text-[#24170f] transition-colors p-1 bg-white rounded-full border border-[#f1ded1]">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">esc to close</span>
+                <button onClick={() => setIsOpen(false)} className="text-[#8a7668] hover:text-[#24170f] transition-colors p-1 bg-white rounded-full border border-[#f1ded1]">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
             <div className="p-8 sm:p-12 flex flex-col items-center justify-center space-y-8 bg-gradient-to-b from-white to-[#fffaf6]/50">
@@ -45,7 +48,7 @@ export function AlertSettingsClient() {
                 <p className="text-[#8a7668]">Select where you want to receive your price drop alerts.</p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+              <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-14">
                 {[
                   { name: "Email", icon: "https://upload.wikimedia.org/wikipedia/commons/e/ec/Circle-icons-mail.svg" },
                   { name: "Slack", icon: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg" },
@@ -54,8 +57,8 @@ export function AlertSettingsClient() {
                 ].map((net) => (
                   <label key={net.name} className="flex flex-col items-center gap-3 cursor-pointer group relative">
                     <input type="checkbox" className="sr-only peer" defaultChecked={net.name === "Email"} />
-                    <div className="w-20 h-20 rounded-2xl bg-white border-2 border-[#f1ded1] shadow-sm flex items-center justify-center peer-checked:border-[#ff690c] peer-checked:bg-[#fffaf6] peer-checked:shadow-[0_0_15px_rgba(255,105,12,0.15)] transition-all group-hover:scale-105">
-                      <img src={net.icon} alt={net.name} className="w-10 h-10 object-contain" />
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white border-2 border-[#f1ded1] shadow-sm flex items-center justify-center peer-checked:border-[#ff690c] peer-checked:bg-[#fffaf6] peer-checked:shadow-[0_0_15px_rgba(255,105,12,0.15)] transition-all group-hover:scale-105">
+                      <img src={net.icon} alt={net.name} className="w-12 h-12 sm:w-14 sm:h-14 object-contain" />
                       
                       {/* Checkmark badge */}
                       <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#ff690c] rounded-full text-white flex items-center justify-center opacity-0 peer-checked:opacity-100 transition-opacity shadow-md">
