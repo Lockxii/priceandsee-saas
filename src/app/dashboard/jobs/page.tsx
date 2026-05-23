@@ -19,20 +19,20 @@ export default async function ScrapeJobsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Scrape Jobs Log</h1>
+      <h1 className="text-2xl font-bold text-[#24170f]">Scrape Jobs Log</h1>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="divide-y divide-slate-100">
+      <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)] overflow-hidden">
+        <div className="divide-y divide-[#f6e8de]">
           {jobs.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">No jobs recorded yet.</div>
+            <div className="p-8 text-center text-[#8a7668]">No jobs recorded yet.</div>
           ) : (
             jobs.map((job: any) => (
               <div key={job.id} className="p-6 flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <span className="font-medium text-slate-900">{job.product.url}</span>
+                    <span className="font-medium text-[#24170f]">{job.product.url}</span>
                   </div>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-[#8a7668]">
                     {new Date(job.createdAt).toLocaleString()}
                   </p>
                   {job.errorMessage && (
@@ -43,7 +43,7 @@ export default async function ScrapeJobsPage() {
                 </div>
                 <div className="flex-shrink-0 ml-4">
                   {job.status === "SUCCESS" && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f2f8ec] text-[#4f761d] border border-[#d8e8c8]">
                       <CheckCircle2 className="w-4 h-4" /> Success
                     </span>
                   )}
@@ -53,7 +53,7 @@ export default async function ScrapeJobsPage() {
                     </span>
                   )}
                   {job.status === "PENDING" && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#fff2e8] text-[#c84f00] border border-[#ffd7bd]">
                       <Clock className="w-4 h-4" /> Pending
                     </span>
                   )}
