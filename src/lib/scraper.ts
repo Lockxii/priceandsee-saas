@@ -159,10 +159,33 @@ export function extractProductData(html: string): ExtractedProduct {
 
 async function runPythonScraper(url: string): Promise<ExtractedProduct | null> {
   try {
-    const { stdout } = await execAsync("python3", ["scraper/run_scraper.py", url], { timeout: 30000 });
-    const result = JSON.parse(stdout);
-    if (result.success && result.data) {
-      return result.data;
+    const scraperApiUrl = process.env.SCRAPER_API_URL;
+    const scraperApiKey = process.env.SCRAPER_API_KEY || "secret_key_to_change";
+
+    if (scraperApiUrl) {
+      const res = await fetch(scraperApiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${scraperApiKey}`
+        },
+        body: JSON.stringify({ url }),
+        signal: AbortSignal.timeout(30000)
+      });
+      
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          return result.data;
+        }
+      }
+    } else {
+      // Fallback for local development or VPS where python3 is available
+      const { stdout } = await execAsync("python3", ["scraper/run_scraper.py", url], { timeout: 30000 });
+      const result = JSON.parse(stdout);
+      if (result.success && result.data) {
+        return result.data;
+      }
     }
   } catch (e) {
     console.error("Python scraper error:", e);
