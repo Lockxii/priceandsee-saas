@@ -24,25 +24,25 @@ export default function TarifsPage() {
         </div>
       </header>
 
-      <main className="py-20">
+      <main className="py-8 md:py-10">
         <section className="max-w-[1180px] mx-auto px-6">
-          <div className="text-center mb-16">
-            <span className="text-[#ff690c] font-bold text-[14px] uppercase tracking-wider mb-4 block">Tarif</span>
-            <h1 className="text-[40px] md:text-[64px] font-bold text-[#35251c] tracking-tight leading-[1.05] mb-6">
+          <div className="text-center mb-10">
+            <span className="text-[#ff690c] font-bold text-[13px] uppercase tracking-wider mb-2 block">Tarif</span>
+            <h1 className="text-[36px] md:text-[52px] font-bold text-[#35251c] tracking-tight leading-[1.02] mb-4">
               Une tarification simple pour
               <br className="hidden md:block" />
               surveiller vos concurrents
             </h1>
-            <p className="text-[18px] text-[#474747] max-w-[760px] mx-auto leading-relaxed">
+            <p className="text-[16px] text-[#474747] max-w-[720px] mx-auto leading-relaxed">
               Une première offre à 19€/mois pour suivre 10 URLs concurrentes, puis des plans plus rapides quand votre catalogue grandit.
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8 max-w-[1080px] mx-auto">
+          <div className="grid lg:grid-cols-3 gap-6 max-w-[1060px] mx-auto">
             {pricingPlans.map((plan) => (
               <div
                 key={plan.name}
-                className={`relative bg-white rounded-[24px] p-8 flex flex-col ${
+                className={`relative bg-white rounded-[22px] p-6 flex flex-col ${
                   plan.popular
                     ? "border-2 border-[#ff690c] shadow-[0_20px_50px_-15px_rgba(255,105,12,0.15)]"
                     : "border border-[#ebebeb] shadow-sm"
@@ -54,14 +54,14 @@ export default function TarifsPage() {
                   </div>
                 )}
 
-                <div className="mb-8">
-                  <h2 className="text-[28px] font-bold mb-3">{plan.name}</h2>
-                  <p className="text-[16px] text-[#474747] leading-relaxed">{plan.description}</p>
+                <div className="mb-5">
+                  <h2 className="text-[25px] font-bold mb-2">{plan.name}</h2>
+                  <p className="text-[15px] text-[#474747] leading-relaxed min-h-[72px]">{plan.description}</p>
                 </div>
 
                 <div className="mb-2 flex items-end gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[56px] font-[800] text-[#ff690c] tracking-tighter leading-none">
+                    <span className="text-[46px] font-[800] text-[#ff690c] tracking-tighter leading-none">
                       {plan.monthlyPrice}€
                     </span>
                     <span className="rounded-full bg-[#fff2e8] px-2.5 py-1 text-[11px] font-bold text-[#ff690c]">
@@ -70,13 +70,13 @@ export default function TarifsPage() {
                   </div>
                   <span className="text-[15px] font-medium text-[#888] pb-2">/mois</span>
                 </div>
-                <p className="text-[13px] text-[#888] mb-8">
+                <p className="text-[12px] text-[#888] mb-5">
                   Passe à {plan.yearlyPrice}€/mois avec -20% en facturation annuelle.
                 </p>
 
-                <Link href="/register" className="w-full mb-8">
+                <Link href="/register" className="w-full mb-5">
                   <button
-                    className={`w-full h-[50px] rounded-[12px] font-semibold text-[15px] transition-all ${
+                    className={`w-full h-[46px] rounded-[12px] font-semibold text-[15px] transition-all ${
                       plan.popular
                         ? "bg-[#ff690c] text-white hover:bg-[#e55e0b] shadow-[0_4px_12px_rgba(255,105,12,0.28)]"
                         : "bg-white text-black border border-[#ebebeb] hover:bg-slate-50"
@@ -86,11 +86,11 @@ export default function TarifsPage() {
                   </button>
                 </Link>
 
-                <div className="w-full h-px bg-[#ebebeb] mb-8" />
+                <div className="w-full h-px bg-[#ebebeb] mb-5" />
 
-                <ul className="space-y-4 flex-1">
+                <ul className="space-y-3 flex-1">
                   {plan.features.map((feature) => (
-                    <li key={feature.label} className="flex items-start justify-between gap-4 text-[14px]">
+                    <li key={feature.label} className="flex items-start justify-between gap-4 text-[13px]">
                       <span className="text-[#474747]">{feature.label}</span>
                       <span className={`font-semibold text-right ${feature.highlight ? "text-[#ff690c]" : feature.included ? "text-black" : "text-[#888]"}`}>
                         {feature.value}
