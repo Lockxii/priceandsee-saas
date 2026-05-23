@@ -17,8 +17,8 @@ export function SettingsModalRenderer({ user, updateProfileAction }: { user: any
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6">
-      <div className="bg-[#fffaf6] w-full max-w-[1400px] h-full max-h-[95vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 backdrop-blur-sm pt-4 sm:pt-8 px-2 sm:px-6">
+      <div className="bg-[#fffaf6] w-full sm:w-[98vw] max-w-[1600px] h-[96vh] rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col animate-in slide-in-from-bottom duration-500 ease-out">
         <div className="px-8 py-5 border-b border-[#f1ded1] flex justify-between items-center bg-white sticky top-0 z-10">
           <h2 className="text-xl font-bold text-[#24170f]">Account Settings</h2>
           <button onClick={closeModal} className="text-[#8a7668] hover:text-[#24170f] transition-colors p-2 bg-[#fffaf6] rounded-full border border-[#f1ded1]">
