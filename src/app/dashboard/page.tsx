@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Activity, AlertTriangle, Link as LinkIcon, TrendingDown } from "lucide-react";
 import Link from "next/link";
+import { OnboardingCard } from "./OnboardingCard";
 
 export default async function DashboardOverview() {
   const session = await getServerSession(authOptions);
@@ -19,8 +20,14 @@ export default async function DashboardOverview() {
     include: { product: true }
   });
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { onboardingCompleted: true },
+  });
+
   return (
     <div className="space-y-6">
+      <OnboardingCard show={!user?.onboardingCompleted} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)] flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-[#fff2e8] flex items-center justify-center text-[#ff690c]">

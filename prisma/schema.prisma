@@ -11,15 +11,17 @@ datasource db {
 }
 
 model User {
-  id               String    @id @default(cuid())
-  name             String?
-  email            String    @unique
-  password         String?
-  stripeCustomerId String?
-  plan             String    @default("FREE") // FREE, PRO, ENTERPRISE
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  products         Product[]
+  id                  String    @id @default(cuid())
+  name                String?
+  email               String    @unique
+  password            String?
+  role                String    @default("USER") // USER, ADMIN
+  onboardingCompleted Boolean   @default(false)
+  stripeCustomerId    String?
+  plan                String    @default("FREE") // FREE, STARTER, GROWTH, SCALE, ENTERPRISE
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  products            Product[]
 }
 
 model Product {
@@ -29,6 +31,9 @@ model Product {
   currentPrice    Float?
   stockStatus     String?        // e.g., "In Stock", "Out of Stock"
   promoText       String?
+  lastCheckedAt   DateTime?
+  lastChangedAt   DateTime?
+  lastError       String?
   userId          String
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt       DateTime       @default(now())
@@ -59,6 +64,8 @@ model ScrapingJob {
   id           String   @id @default(cuid())
   productId    String
   status       String   // PENDING, SUCCESS, FAILED
+  source       String   @default("manual") // manual, cron
+  durationMs   Int?
   errorMessage String?
   createdAt    DateTime @default(now())
   product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)

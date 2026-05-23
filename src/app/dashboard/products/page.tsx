@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, ExternalLink, RefreshCw } from "lucide-react";
+import { Plus, ExternalLink, RefreshCw, Radar } from "lucide-react";
 import Link from "next/link";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [scrapingId, setScrapingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -32,17 +33,32 @@ export default function ProductsPage() {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
-      setError(data.error);
+      setError(data.error || "Impossible d'ajouter cette URL.");
     } else {
       setUrl("");
       fetchProducts();
     }
   };
 
+  const scrapeNow = async (id: string) => {
+    setScrapingId(id);
+    setError("");
+    const res = await fetch(`/api/products/${id}/scrape`, { method: "POST" });
+    const data = await res.json();
+    setScrapingId(null);
+    if (!res.ok) {
+      setError(data.error || "Le scraping a échoué pour cette URL.");
+    }
+    fetchProducts();
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-[#24170f]">Tracked URLs</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-[#24170f]">Tracked URLs</h1>
+          <p className="text-sm text-[#8a7668] mt-1">Ajoute tes concurrents puis lance une première vérification.</p>
+        </div>
       </div>
 
       <form onSubmit={handleAddProduct} className="flex gap-4">
@@ -89,15 +105,26 @@ export default function ProductsPage() {
                         {p.stockStatus}
                       </span>
                     )}
+                    {p.lastCheckedAt && <span className="text-xs text-[#8a7668]">Check: {new Date(p.lastCheckedAt).toLocaleDateString()}</span>}
+                    {p.lastError && <span className="text-xs text-red-600">Erreur extraction</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
+                <div className="flex items-center gap-3">
+                  <div className="text-right mr-3">
                     <p className="text-sm text-[#8a7668]">Current Price</p>
                     <p className="font-bold text-[#24170f] text-lg">
-                      {p.currentPrice ? `$${p.currentPrice}` : "—"}
+                      {p.currentPrice ? `${p.currentPrice}€` : "—"}
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => scrapeNow(p.id)}
+                    disabled={scrapingId === p.id}
+                    className="px-4 py-2 bg-[#ff690c] text-white rounded-lg text-sm font-medium hover:bg-[#e55e0b] transition-colors disabled:opacity-60 flex items-center gap-2"
+                  >
+                    {scrapingId === p.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
+                    Check
+                  </button>
                   <Link href={`/dashboard/products/${p.id}`} className="px-4 py-2 border border-[#f1ded1] rounded-lg text-sm font-medium hover:bg-[#fffaf6] transition-colors">
                     Details
                   </Link>
