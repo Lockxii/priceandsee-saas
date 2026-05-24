@@ -121,14 +121,15 @@ export default async function MonitoringPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-sm text-[#8a7668]">Retention workflow</p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight text-[#24170f] flex items-center gap-3">
-            <Radar className="h-8 w-8 text-[#ff690c]" /> Monitoring Center
-          </h1>
-          <p className="mt-2 max-w-3xl text-[#6f5a4d]">Keep tracked products fresh, catch extraction failures, and spot real price moves from saved history. No generated data.</p>
+          <p className="text-sm text-[var(--dash-muted)]">Retention workflow</p>
+          <p className="mt-2 max-w-3xl text-[var(--dash-muted-strong)] leading-relaxed">
+            Keep tracked products fresh, catch extraction failures, and spot real price moves from saved history.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/product-finder" className="rounded-xl border border-[#f1ded1] bg-white px-4 py-2 text-sm font-black text-[#5b4638] hover:bg-[#fffaf6]">Find products</Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/dashboard/product-finder" className="rounded-xl border border-[var(--dash-border)] bg-white px-4 py-2 text-sm font-black text-[#5b4638] hover:bg-[var(--dash-bg)]">
+            Find products
+          </Link>
           <BulkCheckButton productIds={actionIds} disabledReason={!products.length ? "No tracked products yet" : quotaLeft <= 0 ? "Monthly check quota reached" : !actionIds.length ? "Everything is fresh" : undefined} />
         </div>
       </div>

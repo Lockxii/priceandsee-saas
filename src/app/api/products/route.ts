@@ -44,15 +44,38 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = session.user.id;
-  const products = await prisma.product.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" }
-  });
+  const [products, user] = await Promise.all([
+    prisma.product.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        plan: true,
+        maxUrls: true,
+        monthlyCheckLimit: true,
+        monthlyChecksUsed: true,
+        _count: { select: { products: true } },
+      },
+    }),
+  ]);
 
-  return NextResponse.json({ products });
+  const limits = user ? effectiveUserLimits(user) : effectiveUserLimits({ plan: "FREE" });
+
+  return NextResponse.json({
+    products,
+    usage: {
+      plan: user?.plan || "FREE",
+      productsCount: user?._count.products ?? products.length,
+      maxUrls: limits.maxUrls,
+      monthlyChecksUsed: user?.monthlyChecksUsed ?? 0,
+      monthlyCheckLimit: limits.monthlyCheckLimit,
+    },
+  });
 }

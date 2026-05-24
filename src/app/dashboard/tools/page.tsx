@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, ArrowRight, BadgePercent, Boxes, Cpu, Download, ImageDown, MessageSquareText, PackageSearch, Radar, SearchCode, Sparkles } from "lucide-react";
+import { Archive, ArrowRight, BadgePercent, Boxes, Cpu, Download, ImageDown, MessageSquareText, PackageSearch, Radar, SearchCode } from "lucide-react";
 
 const tools = [
   {
@@ -79,12 +79,13 @@ const ideas = [
 export default function ToolsPage() {
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-[#f1ded1] bg-white p-6 shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)]">
-        <p className="text-sm text-[#8a7668]">Commerce toolbox</p>
+      <div className="rounded-2xl border border-[var(--dash-border)] bg-white p-6 shadow-[var(--dash-shadow)]">
+        <p className="text-sm text-[var(--dash-muted)]">Commerce toolbox</p>
         <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-[#24170f] flex items-center gap-3"><Sparkles className="h-8 w-8 text-[#ff690c]" />Tools</h1>
-            <p className="mt-2 max-w-3xl text-[#6f5a4d]">One place for small scraping workflows. No mock data: every tool fetches the target site and extracts real signals.</p>
+            <p className="mt-2 max-w-3xl text-[var(--dash-muted-strong)] leading-relaxed">
+              One place for small scraping workflows. Every tool fetches the target site and extracts real signals.
+            </p>
           </div>
           <Link href="/dashboard/products" className="inline-flex items-center gap-2 rounded-xl bg-[#ff690c] px-4 py-2 text-sm font-black text-white shadow-[0_8px_18px_rgba(255,105,12,0.18)] hover:bg-[#e85f0a]">
             Go to tracked URLs <ArrowRight className="h-4 w-4" />

@@ -192,3 +192,16 @@
 .animate-marquee-reverse {
   animation: marquee 40s linear infinite reverse;
 }
+
+/* Dashboard app shell (LP unchanged) */
+.dashboard-shell {
+  --dash-bg: #fffaf6;
+  --dash-surface: #ffffff;
+  --dash-border: #f1ded1;
+  --dash-ink: #24170f;
+  --dash-ink-soft: #35251c;
+  --dash-muted: #8a7668;
+  --dash-muted-strong: #6f5a4d;
+  --dash-accent: #ff690c;
+  --dash-shadow: 0 10px 30px -24px rgba(53, 37, 28, 0.45);
+}
