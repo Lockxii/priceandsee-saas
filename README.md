@@ -67,11 +67,12 @@ SCRAPER_TIMEOUT_MS="45000"
 SCRAPER_WAIT_MS="1200"
 
 # External fallback providers. Public Shopify/WooCommerce endpoints run automatically.
-SCRAPER_EXTERNAL_PROVIDERS="firecrawl,scrapegraph,crawl4ai,camoufox,browser_use"
+SCRAPER_EXTERNAL_PROVIDERS="firecrawl,scrapegraph"
 SCRAPER_EXTERNAL_PROVIDERS_ALWAYS="false" # false = providers run on fallback/thin data; true = always enrich
 FIRECRAWL_API_KEY="" # Firecrawl v2 scrape API
 FIRECRAWL_API_URL="https://api.firecrawl.dev/v2/scrape" # override if self-hosted
-SGAI_API_KEY="" # ScrapeGraphAI API / scrapegraph-py, SCRAPEGRAPH_API_KEY also works
+SGAI_API_KEY="" # ScrapeGraphAI REST v2 API. SCRAPEGRAPH_API_KEY also works.
+SGAI_API_URL="https://v2-api.scrapegraphai.com/api/scrape"
 CRAWL4AI_API_URL="" # Optional self-hosted Crawl4AI Docker API, ex: http://crawl4ai:11235
 CAMOUFOX_ENABLED="false" # true only if Railway image has Camoufox browsers ready
 BROWSER_USE_ENABLED="false" # requires OPENAI_API_KEY or compatible LangChain OpenAI config
@@ -86,4 +87,4 @@ SCRAPER_API_KEY="same-value-as-scraper-service"
 
 The Dockerfile intentionally resets the official Scrapling image entrypoint. Without that, Railway passes `uvicorn ...` to the `scrapling` CLI and the container fails with `Try 'scrapling --help' for help.`
 
-The scraper now layers multiple providers: Scrapling first, public e-commerce endpoints (Shopify `/products/*.js`, WooCommerce Store API), marketplace/platform adapters, then optional Firecrawl, ScrapeGraphAI, Crawl4AI, Camoufox and browser-use fallbacks when configured.
+The scraper now layers multiple providers: Scrapling first, public e-commerce endpoints (Shopify `/products/*.js`, WooCommerce Store API), marketplace/platform adapters, then optional Firecrawl and ScrapeGraphAI REST fallbacks when configured. Crawl4AI/Camoufox/browser-use stay supported in code, but are not installed by default on Railway to keep the service bootable; enable them only in a custom image/runtime.

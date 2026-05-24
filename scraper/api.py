@@ -1,17 +1,29 @@
+import importlib
 import os
-from typing import Literal
+from functools import lru_cache
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 
-from run_scraper import provider_status, scrape_url
-
-app = FastAPI(title="PriceAndSee Scraper API", version="2.0.0")
+app = FastAPI(title="PriceAndSee Scraper API", version="2.0.1")
 
 API_KEY = os.environ.get("SCRAPER_API_KEY", "secret_key_to_change")
 PUBLIC_ORIGIN = os.environ.get("PUBLIC_ORIGIN")
+
+
+@lru_cache(maxsize=1)
+def scraper_module() -> tuple[Any | None, str | None]:
+    try:
+        return importlib.import_module("run_scraper"), None
+    except Exception as exc:  # Keep /health alive even if Scrapling/providers are broken.
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+def clear_scraper_import_cache() -> None:
+    scraper_module.cache_clear()
 
 
 class ScrapeRequest(BaseModel):
@@ -46,15 +58,33 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "providers": provider_status() if provider_status else {}}
+    module, import_error = scraper_module()
+    providers = {}
+    if module is not None:
+        try:
+            status_fn = getattr(module, "provider_status", None)
+            providers = status_fn() if status_fn else {}
+        except Exception as exc:
+            providers = {"statusError": f"{type(exc).__name__}: {exc}"}
+    return {
+        "status": "ok",
+        "scraperImport": "ok" if module is not None else "degraded",
+        "scraperImportError": import_error,
+        "providers": providers,
+    }
 
 
 @app.post("/scrape")
 async def scrape(req: ScrapeRequest, authorization: str | None = Header(default=None)):
     require_api_key(authorization)
 
+    module, import_error = scraper_module()
+    if module is None:
+        clear_scraper_import_cache()
+        raise HTTPException(status_code=503, detail=f"Scraper runtime failed to import: {import_error}")
+
     result = await run_in_threadpool(
-        scrape_url,
+        module.scrape_url,
         req.url,
         req.mode,
         req.timeout_ms,

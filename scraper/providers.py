@@ -109,7 +109,7 @@ def html_page_from_text(markup: str, url: str) -> HtmlPage | None:
 
 
 def provider_list_from_env() -> list[str]:
-    raw = os.getenv("SCRAPER_EXTERNAL_PROVIDERS", "firecrawl,scrapegraph,crawl4ai,camoufox,browser_use")
+    raw = os.getenv("SCRAPER_EXTERNAL_PROVIDERS", "firecrawl,scrapegraph")
     return [item.strip().lower() for item in raw.split(",") if item.strip()]
 
 
@@ -240,6 +240,21 @@ def pick(record: dict[str, Any], *keys: str) -> Any:
         if actual is not None:
             return record.get(actual)
     return None
+
+
+def list_result_data(value: Any) -> list[Any]:
+    if value in EMPTY_VALUES:
+        return []
+    if isinstance(value, dict) and "data" in value:
+        value = value.get("data")
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def first_result_data(value: Any) -> Any:
+    values = list_result_data(value)
+    return values[0] if values else None
 
 
 def normalize_structured_product(record: Any, base_url: str, source: str) -> dict[str, Any]:
@@ -481,12 +496,13 @@ def firecrawl_provider(url: str, timeout_ms: int | None = None, wait_ms: int | N
             "formats": [
                 "markdown",
                 "html",
+                "images",
                 {"type": "json", "prompt": PRODUCT_PROMPT, "schema": PRODUCT_SCHEMA},
             ],
             "onlyMainContent": False,
             "waitFor": wait_ms or 1500,
         },
-        {"url": url, "formats": ["markdown", "html"], "onlyMainContent": False},
+        {"url": url, "formats": ["markdown", "html", "images"], "onlyMainContent": False},
     ]
     last_error = None
     for payload in payloads:
@@ -505,6 +521,9 @@ def firecrawl_provider(url: str, timeout_ms: int | None = None, wait_ms: int | N
         markdown = container.get("markdown") or container.get("content")
         data = merge_missing(data, markdown_to_product(markdown, url, "firecrawl-markdown"))
         html_text = container.get("html") or container.get("rawHtml") or container.get("raw_html")
+        image_payload = container.get("images")
+        if image_payload:
+            data = merge_missing(data, {"productMedia": normalize_image_items(list_result_data(image_payload), url, "firecrawl-images")})
         return ProviderResult("firecrawl", data, html=html_text if isinstance(html_text, str) else None, markdown=markdown if isinstance(markdown, str) else None, duration_ms=round((time.time() - started) * 1000))
     return ProviderResult("firecrawl", {}, error=last_error or "empty Firecrawl response")
 
@@ -514,45 +533,57 @@ def scrapegraph_provider(url: str, timeout_ms: int | None = None, wait_ms: int |
     api_key = os.getenv("SGAI_API_KEY") or os.getenv("SCRAPEGRAPH_API_KEY")
     if not api_key:
         return ProviderResult("scrapegraph-ai", {}, error="SGAI_API_KEY missing")
+
+    endpoint = os.getenv("SGAI_API_URL", "https://v2-api.scrapegraphai.com/api/scrape")
+    timeout = max(5, int((timeout_ms or EXTERNAL_PROVIDER_TIMEOUT_MS) / 1000))
+    payload = {
+        "url": url,
+        "formats": [
+            {"type": "markdown", "mode": "reader"},
+            {"type": "html", "mode": "normal"},
+            {"type": "images"},
+            {"type": "json", "prompt": PRODUCT_PROMPT, "schema": PRODUCT_SCHEMA},
+        ],
+        "fetchConfig": {
+            "mode": os.getenv("SGAI_FETCH_MODE", "js"),
+            "stealth": os.getenv("SGAI_STEALTH", "true").lower() not in {"0", "false", "no", "off"},
+            "timeout": min(timeout_ms or EXTERNAL_PROVIDER_TIMEOUT_MS, 60000),
+            "wait": min(wait_ms or 1500, 30000),
+            "scrolls": int(os.getenv("SGAI_SCROLLS", "2")),
+        },
+    }
+
     try:
-        from scrapegraph_py import FetchConfig, JsonFormatConfig, MarkdownFormatConfig, ScrapeGraphAI
-    except Exception as exc:
-        return ProviderResult("scrapegraph-ai", {}, error=f"scrapegraph-py unavailable: {exc}")
-    try:
-        client = ScrapeGraphAI(api_key=api_key)
-        result = client.scrape(
-            url,
-            formats=[
-                JsonFormatConfig(prompt=PRODUCT_PROMPT, schema=PRODUCT_SCHEMA),
-                MarkdownFormatConfig(mode="reader"),
-            ],
-            fetch_config=FetchConfig(
-                mode="js",
-                stealth=True,
-                timeout=timeout_ms or EXTERNAL_PROVIDER_TIMEOUT_MS,
-                wait=wait_ms or 1500,
-                scrolls=int(os.getenv("SGAI_SCROLLS", "2")),
-            ),
-        )
+        response = http_json(endpoint, timeout=timeout, method="POST", payload=payload, extra_headers={"SGAI-APIKEY": api_key})
     except Exception as exc:
         return ProviderResult("scrapegraph-ai", {}, error=str(exc), duration_ms=round((time.time() - started) * 1000))
-    if getattr(result, "status", None) != "success":
-        return ProviderResult("scrapegraph-ai", {}, error=str(getattr(result, "error", "ScrapeGraphAI failed")), duration_ms=getattr(result, "elapsed_ms", None))
-    payload = getattr(result, "data", None) or {}
-    container = payload.get("results") if isinstance(payload, dict) and isinstance(payload.get("results"), dict) else payload
-    structured = None
-    markdown = None
-    if isinstance(container, dict):
-        json_result = container.get("json") or container.get("extract")
-        if isinstance(json_result, dict):
-            structured = json_result.get("data") or json_result
-        md_result = container.get("markdown")
-        markdown = md_result.get("data") if isinstance(md_result, dict) else md_result
+
+    if not isinstance(response, dict):
+        return ProviderResult("scrapegraph-ai", {}, error="empty ScrapeGraphAI response", duration_ms=round((time.time() - started) * 1000))
+    if response.get("error"):
+        return ProviderResult("scrapegraph-ai", {}, error=str(response.get("error")), duration_ms=round((time.time() - started) * 1000))
+
+    results = response.get("results") if isinstance(response.get("results"), dict) else response
+    if not isinstance(results, dict):
+        return ProviderResult("scrapegraph-ai", {}, error="invalid ScrapeGraphAI response", duration_ms=round((time.time() - started) * 1000))
+
+    structured = first_result_data(results.get("json"))
+    markdown = first_result_data(results.get("markdown"))
+    html_text = first_result_data(results.get("html"))
+    image_values = list_result_data(results.get("images"))
+
     data = merge_missing(
         normalize_structured_product(structured, url, "scrapegraph-ai"),
-        markdown_to_product(markdown, url, "scrapegraph-ai-markdown"),
+        markdown_to_product(markdown if isinstance(markdown, str) else None, url, "scrapegraph-ai-markdown"),
+        {"productMedia": normalize_image_items(image_values, url, "scrapegraph-ai-images")} if image_values else {},
     )
-    return ProviderResult("scrapegraph-ai", data, markdown=markdown if isinstance(markdown, str) else None, duration_ms=getattr(result, "elapsed_ms", None) or round((time.time() - started) * 1000))
+    return ProviderResult(
+        "scrapegraph-ai",
+        data,
+        html=html_text if isinstance(html_text, str) else None,
+        markdown=markdown if isinstance(markdown, str) else None,
+        duration_ms=round((time.time() - started) * 1000),
+    )
 
 
 def crawl4ai_css_schema() -> dict[str, Any]:
@@ -704,7 +735,7 @@ def run_external_providers(url: str, timeout_ms: int | None = None, wait_ms: int
 
 def provider_status() -> dict[str, Any]:
     optional_imports = {}
-    for module in ["parsel", "scrapegraph_py", "crawl4ai", "camoufox", "browser_use"]:
+    for module in ["parsel", "crawl4ai", "camoufox", "browser_use"]:
         try:
             __import__(module)
             optional_imports[module] = True
@@ -715,6 +746,7 @@ def provider_status() -> dict[str, Any]:
         "alwaysRunExternalProviders": should_run_external_always(),
         "firecrawlConfigured": bool(os.getenv("FIRECRAWL_API_KEY")),
         "scrapeGraphConfigured": bool(os.getenv("SGAI_API_KEY") or os.getenv("SCRAPEGRAPH_API_KEY")),
+        "scrapeGraphApiUrl": os.getenv("SGAI_API_URL", "https://v2-api.scrapegraphai.com/api/scrape"),
         "crawl4aiApiConfigured": bool(os.getenv("CRAWL4AI_API_URL")),
         "camoufoxEnabled": os.getenv("CAMOUFOX_ENABLED", "false").lower() in {"1", "true", "yes", "on"},
         "browserUseEnabled": os.getenv("BROWSER_USE_ENABLED", "false").lower() in {"1", "true", "yes", "on"},

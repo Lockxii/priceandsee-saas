@@ -3,7 +3,11 @@ FROM pyd4vinci/scrapling:latest
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     SCRAPER_API_KEY="" \
-    SCRAPER_MODE="auto"
+    SCRAPER_MODE="auto" \
+    SCRAPER_EXTERNAL_PROVIDERS="firecrawl,scrapegraph" \
+    SCRAPER_EXTERNAL_PROVIDERS_ALWAYS="false" \
+    CAMOUFOX_ENABLED="false" \
+    BROWSER_USE_ENABLED="false"
 
 WORKDIR /app
 
