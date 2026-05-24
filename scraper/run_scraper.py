@@ -20,6 +20,37 @@ except Exception:  # pragma: no cover - keeps the CLI importable during partial 
         extract_with_adapters = None
 
 try:
+    from providers import (
+        append_sources,
+        html_page_from_text,
+        merge_missing as provider_merge_missing,
+        provider_status,
+        run_external_providers,
+        run_public_endpoint_providers,
+        should_run_external_always,
+    )
+except Exception:  # pragma: no cover
+    try:
+        from scraper.providers import (
+            append_sources,
+            html_page_from_text,
+            merge_missing as provider_merge_missing,
+            provider_status,
+            run_external_providers,
+            run_public_endpoint_providers,
+            should_run_external_always,
+        )
+    except Exception:
+        append_sources = None
+        html_page_from_text = None
+        provider_merge_missing = None
+        provider_status = None
+        run_external_providers = None
+        run_public_endpoint_providers = None
+        should_run_external_always = None
+
+
+try:
     from scrapling.fetchers import DynamicFetcher, Fetcher, StealthyFetcher
     SCRAPLING_IMPORT_ERROR = None
 except Exception as exc:  # pragma: no cover - used only when the dependency is missing/misinstalled
@@ -1358,6 +1389,59 @@ def fetch_page(url: str, mode: str, timeout_ms: int, wait_ms: int) -> tuple[Any,
     raise ValueError(f"Unsupported scraper mode: {mode}")
 
 
+def provider_result_summary(results: list[Any]) -> dict[str, Any]:
+    used = [result.name for result in results if getattr(result, "data", None) or getattr(result, "html", None) or getattr(result, "markdown", None)]
+    errors = [f"{result.name}: {result.error}" for result in results if getattr(result, "error", None)]
+    durations = {result.name: result.duration_ms for result in results if getattr(result, "duration_ms", None) is not None}
+    return compact({"used": used, "errors": errors[:12], "durationsMs": durations})
+
+
+def merge_provider_results(base: dict[str, Any], url: str, results: list[Any]) -> dict[str, Any]:
+    merger = provider_merge_missing or merge_missing
+    merged = dict(base)
+    provider_names: list[str] = []
+    provider_errors: list[str] = []
+
+    for result in results:
+        name = getattr(result, "name", "provider")
+        data = getattr(result, "data", None) or {}
+        html_text = getattr(result, "html", None)
+        markdown = getattr(result, "markdown", None)
+        error = getattr(result, "error", None)
+        if error:
+            provider_errors.append(f"{name}: {error}")
+        if data:
+            merged = merger(merged, data)
+            provider_names.append(name)
+        if html_text and html_page_from_text:
+            try:
+                provider_page = html_page_from_text(html_text, url)
+                if provider_page is not None:
+                    provider_data = extract_product_data(provider_page, url, name)
+                    if provider_data:
+                        merged = merger(merged, provider_data)
+                        provider_names.append(f"{name}:html")
+            except Exception as exc:
+                provider_errors.append(f"{name}:html:{type(exc).__name__}")
+        if markdown and not data:
+            # Markdown-only providers are normalized in providers.py when possible.
+            provider_names.append(f"{name}:markdown")
+
+    if provider_names and append_sources:
+        merged = append_sources(merged, provider_names, provider_errors)
+    elif provider_names:
+        signals = merged.get("brandSignals") if isinstance(merged.get("brandSignals"), dict) else {}
+        signals["providers"] = unique([*(signals.get("providers") or []), *provider_names])
+        merged["brandSignals"] = compact(signals)
+    return compact(merged)
+
+
+def run_external_provider_fallbacks(url: str, timeout_ms: int, wait_ms: int) -> list[Any]:
+    if not run_external_providers:
+        return []
+    return run_external_providers(url, timeout_ms, wait_ms)
+
+
 def is_useful(data: dict[str, Any]) -> bool:
     return bool(data.get("title") or data.get("price") is not None or data.get("brand") or data.get("description"))
 
@@ -1370,28 +1454,74 @@ def scrape_url(url: str, mode: str | None = None, timeout_ms: int | None = None,
 
     modes = ["fast", "dynamic", "stealth"] if mode == "auto" else [mode]
     errors: list[str] = []
+    public_provider_data: dict[str, Any] = {}
+    public_provider_results: list[Any] = []
+    if run_public_endpoint_providers:
+        try:
+            public_provider_data, public_provider_results = run_public_endpoint_providers(url, "")
+        except Exception as exc:
+            errors.append(f"public-providers: {exc}")
 
     for selected_mode in modes:
         try:
             page, fetcher_used = fetch_page(url, selected_mode, timeout_ms, wait_ms)
             data = extract_product_data(page, url, fetcher_used)
+            if run_public_endpoint_providers and not public_provider_results:
+                raw_hint = page_raw_text(page)[:120_000]
+                try:
+                    public_provider_data, public_provider_results = run_public_endpoint_providers(url, raw_hint)
+                except Exception as exc:
+                    errors.append(f"public-providers:{selected_mode}: {exc}")
+            if public_provider_data:
+                data = (provider_merge_missing or merge_missing)(public_provider_data, data)
+            if public_provider_results:
+                data = merge_provider_results(data, url, public_provider_results)
             if is_useful(data):
+                external_results: list[Any] = []
+                if should_run_external_always and should_run_external_always():
+                    external_results = run_external_provider_fallbacks(url, timeout_ms, wait_ms)
+                    data = merge_provider_results(data, url, external_results)
                 return {
                     "success": True,
                     "data": data,
-                    "meta": {
+                    "meta": compact({
                         "fetcher": fetcher_used,
                         "durationMs": round((time.time() - start) * 1000),
-                    },
+                        "publicProviders": provider_result_summary(public_provider_results) if public_provider_results else None,
+                        "externalProviders": provider_result_summary(external_results) if external_results else None,
+                    }),
                 }
             errors.append(f"{selected_mode}: no useful product or brand data extracted")
         except Exception as exc:
             errors.append(f"{selected_mode}: {exc}")
 
+    fallback_data = dict(public_provider_data)
+    if public_provider_results:
+        fallback_data = merge_provider_results(fallback_data, url, public_provider_results)
+    external_results = run_external_provider_fallbacks(url, timeout_ms, wait_ms)
+    if external_results:
+        fallback_data = merge_provider_results(fallback_data, url, external_results)
+
+    if is_useful(fallback_data):
+        return {
+            "success": True,
+            "data": fallback_data,
+            "meta": compact({
+                "fetcher": "providers",
+                "durationMs": round((time.time() - start) * 1000),
+                "publicProviders": provider_result_summary(public_provider_results) if public_provider_results else None,
+                "externalProviders": provider_result_summary(external_results) if external_results else None,
+            }),
+        }
+
     return {
         "success": False,
-        "error": " | ".join(errors) or "Scraping failed",
-        "meta": {"durationMs": round((time.time() - start) * 1000)},
+        "error": " | ".join(errors + provider_result_summary(public_provider_results + external_results).get("errors", [])) or "Scraping failed",
+        "meta": compact({
+            "durationMs": round((time.time() - start) * 1000),
+            "publicProviders": provider_result_summary(public_provider_results) if public_provider_results else None,
+            "externalProviders": provider_result_summary(external_results) if external_results else None,
+        }),
     }
 
 

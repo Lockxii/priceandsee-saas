@@ -6,7 +6,7 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 
-from run_scraper import scrape_url
+from run_scraper import provider_status, scrape_url
 
 app = FastAPI(title="PriceAndSee Scraper API", version="2.0.0")
 
@@ -46,7 +46,7 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "providers": provider_status() if provider_status else {}}
 
 
 @app.post("/scrape")
