@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { LayoutDashboard, Link as LinkIcon, Settings, Activity, Zap } from "lucide-react";
+import { LayoutDashboard, Link as LinkIcon, Settings, Activity, Zap, PackageSearch } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { GuidedTour } from "./GuidedTour";
 import { AccountMenu } from "./AccountMenu";
@@ -53,6 +53,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Link href="/dashboard/products" data-tour="sidebar-products" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
             <LinkIcon className="w-5 h-5" />
             <span className="font-medium">Tracked URLs</span>
+          </Link>
+          <Link href="/dashboard/product-finder" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
+            <PackageSearch className="w-5 h-5" />
+            <span className="font-medium">Product Finder</span>
           </Link>
           <Link href="/dashboard/jobs" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
             <Activity className="w-5 h-5" />
