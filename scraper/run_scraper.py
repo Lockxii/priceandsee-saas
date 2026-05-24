@@ -1170,6 +1170,19 @@ def shopify_catalog_image(value: Any, base_url: str) -> str | None:
     return None
 
 
+def shopify_variant_prices(variants: list[dict[str, Any]], fallback: dict[str, Any]) -> dict[str, Any]:
+    prices = [price for price in [shopify_price(variant.get("price")) for variant in variants] if price is not None]
+    compare_prices = [price for price in [shopify_price(variant.get("compare_at_price")) for variant in variants] if price is not None]
+    fallback_price = shopify_price(fallback.get("price") or fallback.get("price_min"))
+    return {
+        "price": prices[0] if prices else fallback_price,
+        "minPrice": min(prices) if prices else fallback_price,
+        "maxPrice": max(prices) if prices else fallback_price,
+        "compareAtPrice": max(compare_prices) if compare_prices else shopify_price(fallback.get("compare_at_price")),
+        "variantsAvailable": sum(1 for variant in variants if variant.get("available") is True),
+    }
+
+
 def extract_shopify_product_catalog(url: str) -> list[dict[str, Any]]:
     root = None
     parsed_url = urlparse(url)
@@ -1194,17 +1207,24 @@ def extract_shopify_product_catalog(url: str) -> list[dict[str, Any]]:
             first_variant = variants[0] if variants else {}
             images = product.get("images") if isinstance(product.get("images"), list) else []
             image = shopify_catalog_image(product.get("image") or product.get("featured_image") or (images[0] if images else None), root)
+            price_signals = shopify_variant_prices(variants, product)
             catalog.append(compact({
                 "title": clean_text(product.get("title")),
                 "handle": clean_text(product.get("handle")),
                 "url": shopify_product_url(root, product.get("handle")),
                 "image": image,
-                "price": shopify_price(first_variant.get("price") or product.get("price") or product.get("price_min")),
-                "compareAtPrice": shopify_price(first_variant.get("compare_at_price") or product.get("compare_at_price")),
-                "available": first_variant.get("available") if isinstance(first_variant.get("available"), bool) else product.get("available") if isinstance(product.get("available"), bool) else None,
+                "price": price_signals.get("price"),
+                "minPrice": price_signals.get("minPrice"),
+                "maxPrice": price_signals.get("maxPrice"),
+                "compareAtPrice": price_signals.get("compareAtPrice"),
+                "available": True if price_signals.get("variantsAvailable", 0) > 0 else first_variant.get("available") if isinstance(first_variant.get("available"), bool) else product.get("available") if isinstance(product.get("available"), bool) else None,
                 "vendor": clean_text(product.get("vendor")),
                 "productType": clean_text(product.get("product_type") or product.get("type")),
                 "variantsCount": len(variants) or None,
+                "variantsAvailable": price_signals.get("variantsAvailable") if variants else None,
+                "createdAt": clean_text(product.get("created_at")),
+                "updatedAt": clean_text(product.get("updated_at")),
+                "publishedAt": clean_text(product.get("published_at")),
                 "source": "shopify-products-json",
             }))
         if catalog:

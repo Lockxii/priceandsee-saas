@@ -52,12 +52,18 @@ type ProductCatalogItem = {
   url?: string;
   image?: string;
   price?: number | null;
+  minPrice?: number | null;
+  maxPrice?: number | null;
   compareAtPrice?: number | null;
   currency?: string | null;
   available?: boolean | null;
   vendor?: string | null;
   productType?: string | null;
   variantsCount?: number | null;
+  variantsAvailable?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
   source?: string;
 };
 
@@ -424,12 +430,18 @@ function asProductCatalog(value: unknown): ProductCatalogItem[] | undefined {
         url,
         image,
         price: item.price !== undefined && item.price !== null && Number.isFinite(Number(item.price)) ? Number(item.price) : null,
+        minPrice: item.minPrice !== undefined && item.minPrice !== null && Number.isFinite(Number(item.minPrice)) ? Number(item.minPrice) : null,
+        maxPrice: item.maxPrice !== undefined && item.maxPrice !== null && Number.isFinite(Number(item.maxPrice)) ? Number(item.maxPrice) : null,
         compareAtPrice: item.compareAtPrice !== undefined && item.compareAtPrice !== null && Number.isFinite(Number(item.compareAtPrice)) ? Number(item.compareAtPrice) : null,
         currency: asString(item.currency),
         available: typeof item.available === "boolean" ? item.available : null,
         vendor: asString(item.vendor),
         productType: asString(item.productType) || asString(item.product_type),
         variantsCount: item.variantsCount !== undefined && Number.isFinite(Number(item.variantsCount)) ? Number(item.variantsCount) : null,
+        variantsAvailable: item.variantsAvailable !== undefined && Number.isFinite(Number(item.variantsAvailable)) ? Number(item.variantsAvailable) : null,
+        createdAt: asString(item.createdAt) || asString(item.created_at),
+        updatedAt: asString(item.updatedAt) || asString(item.updated_at),
+        publishedAt: asString(item.publishedAt) || asString(item.published_at),
         source: asString(item.source),
       };
     })

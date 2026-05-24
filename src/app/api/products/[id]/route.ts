@@ -18,12 +18,18 @@ type ProductCatalogItem = {
   url?: string;
   image?: string;
   price?: number | null;
+  minPrice?: number | null;
+  maxPrice?: number | null;
   compareAtPrice?: number | null;
   currency?: string | null;
   available?: boolean | null;
   vendor?: string | null;
   productType?: string | null;
   variantsCount?: number | null;
+  variantsAvailable?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
   source?: string;
 };
 
@@ -98,6 +104,19 @@ function shopifyImageUrl(value: unknown, baseUrl: string) {
   if (typeof value === "string") return absoluteImageUrl(value, baseUrl);
   if (!isRecord(value)) return undefined;
   return absoluteImageUrl(String(value.src || value.url || value.original_src || ""), baseUrl);
+}
+
+function catalogPrices(variants: Record<string, unknown>[], fallback: Record<string, unknown>) {
+  const prices = variants.map((variant) => numberFromValue(variant.price)).filter((value): value is number => value !== null);
+  const comparePrices = variants.map((variant) => numberFromValue(variant.compare_at_price)).filter((value): value is number => value !== null);
+  const fallbackPrice = numberFromValue(fallback.price ?? fallback.price_min);
+  return {
+    price: prices[0] ?? fallbackPrice,
+    minPrice: prices.length ? Math.min(...prices) : fallbackPrice,
+    maxPrice: prices.length ? Math.max(...prices) : fallbackPrice,
+    compareAtPrice: comparePrices.length ? Math.max(...comparePrices) : numberFromValue(fallback.compare_at_price),
+    availableVariants: variants.filter((variant) => variant.available === true).length,
+  };
 }
 
 function shopifyProductEndpoints(url: string) {
@@ -193,18 +212,25 @@ async function fetchShopifyProductCatalog(url: string) {
         const firstVariant = variants[0];
         const images = Array.isArray(item.images) ? item.images : [];
         const image = shopifyImageUrl(item.image || item.featured_image || images[0], root);
+        const priceSignals = catalogPrices(variants, item);
         catalog.push({
           title: cleanText(item.title),
           handle: cleanText(item.handle),
           url: shopifyProductUrl(root, item.handle),
           image,
-          price: numberFromValue(firstVariant?.price ?? item.price ?? item.price_min),
-          compareAtPrice: numberFromValue(firstVariant?.compare_at_price ?? item.compare_at_price),
+          price: priceSignals.price,
+          minPrice: priceSignals.minPrice,
+          maxPrice: priceSignals.maxPrice,
+          compareAtPrice: priceSignals.compareAtPrice,
           currency: cleanText(firstVariant?.currency || item.currency),
-          available: typeof firstVariant?.available === "boolean" ? firstVariant.available : typeof item.available === "boolean" ? item.available : null,
+          available: priceSignals.availableVariants > 0 ? true : typeof firstVariant?.available === "boolean" ? firstVariant.available : typeof item.available === "boolean" ? item.available : null,
           vendor: cleanText(item.vendor),
           productType: cleanText(item.product_type || item.type),
           variantsCount: variants.length || null,
+          variantsAvailable: variants.length ? priceSignals.availableVariants : null,
+          createdAt: cleanText(item.created_at),
+          updatedAt: cleanText(item.updated_at),
+          publishedAt: cleanText(item.published_at),
           source: "shopify-products-json",
         });
       }
