@@ -918,7 +918,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
       </div>
 
       <div 
-        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100dvh-112px)] sm:h-[calc(100dvh-132px)] max-h-[860px] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out"
+        className="bg-white w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100dvh-112px)] sm:h-[calc(100dvh-132px)] max-h-[860px] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.18)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out"
         role="dialog"
         aria-modal="true"
         aria-label="Product details"
@@ -958,7 +958,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
               </div>
             </div>
 
-            <div className="bg-[#fffaf6] px-5 sm:px-8 flex gap-4 sm:gap-8 border-b border-[#f1ded1] flex-shrink-0">
+            <div className="bg-white px-5 sm:px-8 flex gap-4 sm:gap-8 border-b border-[#f1ded1] flex-shrink-0">
               {availableTabs.map((tab) => (
                 <button 
                   key={tab} 
@@ -970,7 +970,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
               ))}
             </div>
 
-            <div className="p-4 sm:p-6 flex-1 bg-[#fffaf6] text-[#24170f] overflow-hidden flex flex-col">
+            <div className="p-4 sm:p-6 flex-1 bg-white text-[#24170f] overflow-hidden flex flex-col">
               <div className="w-full h-full flex flex-col">
                 {activeTab === "Overview" && (
                   <div className="flex-1 flex flex-col gap-4 sm:gap-5 overflow-hidden">

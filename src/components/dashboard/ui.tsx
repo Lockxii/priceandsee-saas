@@ -175,7 +175,7 @@ export function SecondaryButton({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 px-4 py-2 border border-[var(--dash-border)] rounded-xl text-sm font-semibold text-[var(--dash-ink-soft)] hover:bg-[var(--dash-bg)] transition-colors disabled:opacity-60 dashboard-surface-transition ${className}`}
+      className={`inline-flex items-center justify-center gap-2 px-4 py-2 border border-[var(--dash-border)] rounded-xl text-sm font-semibold text-[var(--dash-ink-soft)] hover:bg-[#fffdfb] transition-colors disabled:opacity-60 dashboard-surface-transition ${className}`}
       {...props}
     >
       {children}

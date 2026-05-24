@@ -55,14 +55,14 @@ export function SettingsModalRenderer({ user, updateProfileAction }: SettingsMod
 
       {/* Modal */}
       <div 
-        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-64px)] sm:h-[calc(100vh-76px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
+        className="bg-white w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-96px)] sm:h-[calc(100vh-120px)] max-h-[860px] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.18)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 sm:px-8 py-4 border-b border-[#f1ded1] flex justify-between items-center bg-white sticky top-0 z-10">
           <h2 className="text-xl font-bold text-[#24170f]">Account Settings</h2>
         </div>
         
-        <div className="p-4 sm:p-6 flex-1 bg-[#fffaf6] overflow-hidden">
+        <div className="p-4 sm:p-6 flex-1 bg-white overflow-hidden">
           <div className="max-w-6xl mx-auto h-full grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 content-start">
             <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#f1ded1] shadow-sm">
               <h3 className="text-lg font-semibold text-[#24170f] mb-4">Profile</h3>

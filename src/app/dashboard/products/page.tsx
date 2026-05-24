@@ -224,7 +224,7 @@ export default function ProductsPage() {
             {products.map((p) => (
               <article
                 key={p.id}
-                className="p-5 sm:p-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between hover:bg-[var(--dash-bg)] transition-colors"
+                className="p-5 sm:p-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between hover:bg-[#fffdfb] transition-colors"
               >
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-[var(--dash-ink)] truncate">{p.title || "Extraction en attente…"}</h3>

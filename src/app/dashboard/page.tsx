@@ -3,15 +3,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
-  Bell,
-  CheckCircle2,
   Clock3,
   ExternalLink,
   ImageDown,
-  Link as LinkIcon,
   MessageSquareText,
   PackageSearch,
   Plus,
@@ -26,13 +22,9 @@ import {
   DashboardCard,
   DashboardCardHeader,
   EmptyState,
-  StatCard,
   StatusBadge,
   TextLink,
 } from "@/components/dashboard/ui";
-import { PlanUsageStrip } from "@/components/dashboard/PlanUsageStrip";
-import { WorkflowBanner } from "@/components/dashboard/WorkflowBanner";
-import { buildTrackingWorkflow } from "@/lib/dashboard-workflow";
 
 type AttentionProduct = {
   id: string;
@@ -175,7 +167,6 @@ export default async function DashboardOverview() {
   const checksPct = checksLimit ? Math.min(100, Math.round((checksUsed / checksLimit) * 100)) : 0;
   const urlsLeft = Math.max(0, (user?.maxUrls ?? 0) - productsCount);
   const attentionCount = uncheckedCount + failedProductsCount;
-  const workflowSteps = buildTrackingWorkflow({ productsCount, uncheckedCount });
   const displayName = greetingName(user?.name, user?.email);
 
   const quickActions = [
@@ -224,35 +215,35 @@ export default async function DashboardOverview() {
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="dashboard-surface-transition dashboard-resize-transition rounded-2xl border border-[var(--dash-border)] bg-white p-6 sm:p-7 shadow-[var(--dash-shadow)]">
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)] xl:items-end">
+    <div className="space-y-8">
+      <section className="border-b border-[var(--dash-border)] pb-7">
+        <div className="grid gap-7 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)] xl:items-end">
           <div>
             <p className="text-sm font-medium text-[var(--dash-muted)]">Bon retour</p>
-            <h2 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[var(--dash-ink)]">
-              Salut {displayName}, voici ton tableau de bord
+            <h2 className="mt-1 text-3xl sm:text-4xl font-black tracking-tight text-[var(--dash-ink)]">
+              Salut {displayName}, focus sur ce qui bouge.
             </h2>
-            <p className="mt-2 max-w-2xl text-[var(--dash-muted-strong)] leading-relaxed">
-              Suis les prix concurrents, lance des checks et réagis aux baisses — sans quitter l&apos;app.
+            <p className="mt-3 max-w-2xl text-[var(--dash-muted-strong)] leading-relaxed">
+              Une vue plus simple : URLs à surveiller, actions utiles et derniers checks réels. Pas de widgets décoratifs.
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-2.5">
               <Link
                 href="/dashboard/products"
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--dash-accent)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(255,105,12,0.15)] hover:bg-[#e55e0b] transition-colors dashboard-surface-transition dashboard-lift-hover"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--dash-accent)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(255,105,12,0.14)] hover:bg-[#e55e0b] transition-colors dashboard-surface-transition dashboard-lift-hover"
               >
                 <Plus className="h-4 w-4" /> Ajouter une URL
               </Link>
               {priceDrops > 0 ? (
                 <Link
                   href="/dashboard/products"
-                  className="inline-flex items-center gap-2 rounded-xl border border-[#d8e8c8] bg-[#f2f8ec] px-4 py-2.5 text-sm font-bold text-[#4f761d] hover:bg-[#e8f4dc] transition-colors dashboard-surface-transition dashboard-lift-hover"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#d8e8c8] bg-white px-4 py-2.5 text-sm font-bold text-[#4f761d] hover:bg-[#fbfdf8] transition-colors dashboard-surface-transition dashboard-lift-hover"
                 >
                   <TrendingDown className="h-4 w-4" /> {priceDrops} baisse{priceDrops > 1 ? "s" : ""} détectée{priceDrops > 1 ? "s" : ""}
                 </Link>
               ) : (
                 <Link
                   href="/dashboard/tools"
-                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--dash-border)] px-4 py-2.5 text-sm font-bold text-[var(--dash-muted-strong)] hover:bg-[var(--dash-bg)] transition-colors dashboard-surface-transition"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--dash-border)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--dash-muted-strong)] hover:border-[#e2cfc0] hover:text-[var(--dash-ink)] transition-colors dashboard-surface-transition"
                 >
                   Explorer les outils <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -260,51 +251,37 @@ export default async function DashboardOverview() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[var(--dash-border)] bg-[var(--dash-bg)] p-3 dashboard-resize-transition">
-            <p className="px-2 pt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--dash-muted)]">Ops snapshot</p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              <HeroMetric label="Santé" value={`${healthPct}%`} hint={`${checkedCount}/${productsCount} OK`} />
-              <HeroMetric label="Checks" value={`${checksPct}%`} hint={`${checksUsed}/${checksLimit || "∞"}`} />
-              <HeroMetric label="À traiter" value={attentionCount.toString()} hint={`${failedProductsCount} erreurs`} tone={attentionCount > 0 ? "orange" : "green"} />
+          <div className="xl:border-l xl:border-[var(--dash-border)] xl:pl-7">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--dash-muted)]">Plan {user?.plan || "FREE"}</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--dash-ink)]">
+                  {urlsLeft > 0 ? `${urlsLeft} URL${urlsLeft > 1 ? "s" : ""} restante${urlsLeft > 1 ? "s" : ""}` : "Quota URLs atteint"}
+                </p>
+              </div>
+              <Link href="/dashboard/products" className="text-sm font-black text-[var(--dash-accent)] hover:underline">
+                Gérer
+              </Link>
+            </div>
+            <div className="mt-4 space-y-3">
+              <UsageLine label="URLs suivies" value={productsCount} max={user?.maxUrls || 0} />
+              <UsageLine label="Checks mensuels" value={checksUsed} max={checksLimit} />
             </div>
           </div>
         </div>
+
+        <div data-tour="dashboard-stats" className="mt-7 grid grid-cols-1 divide-y divide-[var(--dash-border)] overflow-hidden rounded-2xl border border-[var(--dash-border)] bg-white sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          <OverviewMetric label="Santé" value={`${healthPct}%`} detail={`${checkedCount}/${productsCount} produits OK`} tone={healthPct >= 80 ? "green" : attentionCount > 0 ? "orange" : "default"} />
+          <OverviewMetric label="Checks" value={`${checksPct}%`} detail={`${checksUsed}/${checksLimit || "∞"} ce mois`} />
+          <OverviewMetric label="À traiter" value={attentionCount.toString()} detail={`${failedProductsCount} erreurs · ${uncheckedCount} sans check`} tone={attentionCount > 0 ? "orange" : "green"} />
+          <OverviewMetric label="Alertes" value={activeAlerts.toString()} detail="emails actifs" />
+        </div>
       </section>
-
-      <PlanUsageStrip
-        plan={user?.plan}
-        productsCount={productsCount}
-        monthlyChecksUsed={user?.monthlyChecksUsed}
-        maxUrls={user?.maxUrls}
-        monthlyCheckLimit={user?.monthlyCheckLimit}
-        compact
-      />
-
-      <WorkflowBanner steps={workflowSteps} />
-
-      <div data-tour="dashboard-stats" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="URLs suivies" value={productsCount} hint="Pages concurrentes enregistrées" icon={LinkIcon} />
-        <StatCard label="Produits checkés" value={checkedCount} hint={`${uncheckedCount} sans premier check`} icon={CheckCircle2} tone={uncheckedCount ? "orange" : "green"} />
-        <StatCard
-          label="Baisses de prix"
-          value={priceDrops}
-          hint="par rapport au check précédent"
-          icon={TrendingDown}
-          tone={priceDrops > 0 ? "green" : "default"}
-        />
-        <StatCard
-          label="Alertes actives"
-          value={activeAlerts}
-          hint="emails activés par produit"
-          icon={Bell}
-          tone={activeAlerts > 0 ? "orange" : "default"}
-        />
-      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <DashboardCard padding={false} className="xl:col-span-2">
-          <DashboardCardHeader title="Actions rapides" description="Les workflows les plus utiles, branchés sur de vraies extractions." />
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+          <DashboardCardHeader title="Actions rapides" description="Les workflows vraiment utiles, branchés sur de vraies extractions." />
+          <div className="grid grid-cols-1 p-2 sm:grid-cols-2">
             {quickActions.map((action) => <QuickAction key={action.href} {...action} />)}
           </div>
         </DashboardCard>
@@ -340,7 +317,7 @@ export default async function DashboardOverview() {
               recentJobs.map((job) => (
                 <div
                   key={job.id}
-                  className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-[var(--dash-bg)] dashboard-list-row"
+                  className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-[#fffdfb] dashboard-list-row"
                 >
                   <div className="min-w-0">
                     <p className="font-semibold text-[var(--dash-ink)] truncate">
@@ -375,31 +352,51 @@ export default async function DashboardOverview() {
   );
 }
 
-function HeroMetric({ label, value, hint, tone = "default" }: { label: string; value: string; hint: string; tone?: "default" | "green" | "orange" }) {
+function OverviewMetric({ label, value, detail, tone = "default" }: { label: string; value: string; detail: string; tone?: "default" | "green" | "orange" }) {
   const valueTone = tone === "green" ? "text-[#4f761d]" : tone === "orange" ? "text-[#ff690c]" : "text-[var(--dash-ink)]";
   return (
-    <div className="rounded-xl border border-[var(--dash-border)] bg-white p-3 dashboard-surface-transition">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--dash-muted)]">{label}</p>
-      <p className={`mt-1 text-xl font-black tabular-nums ${valueTone}`}>{value}</p>
-      <p className="mt-0.5 truncate text-[11px] font-semibold text-[var(--dash-muted)]">{hint}</p>
+    <div className="p-4 sm:p-5">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--dash-muted)]">{label}</p>
+      <p className={`mt-2 text-2xl font-black tabular-nums ${valueTone}`}>{value}</p>
+      <p className="mt-1 truncate text-xs font-semibold text-[var(--dash-muted)]">{detail}</p>
+    </div>
+  );
+}
+
+function UsageLine({ label, value, max }: { label: string; value: number; max: number }) {
+  const percent = max ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  const tone = percent >= 90 ? "bg-red-500" : percent >= 70 ? "bg-[#ff690c]" : "bg-[#24170f]";
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-xs font-semibold text-[var(--dash-muted)]">
+        <span>{label}</span>
+        <span className="tabular-nums text-[var(--dash-ink)]">{value}/{max || "∞"}</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#f3e7de]">
+        <div className={`h-full rounded-full transition-all ${tone}`} style={{ width: `${percent}%` }} />
+      </div>
     </div>
   );
 }
 
 function QuickAction({ href, title, description, icon: Icon, badge }: { href: string; title: string; description: string; icon: LucideIcon; badge: string }) {
   return (
-    <Link href={href} className="group dashboard-surface-transition dashboard-lift-hover rounded-2xl border border-[var(--dash-border)] bg-[var(--dash-bg)] p-4 hover:bg-white">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff2e8] text-[var(--dash-accent)]">
-          <Icon className="h-5 w-5" />
+    <Link href={href} className="group dashboard-surface-transition rounded-2xl border border-transparent bg-white p-3 hover:border-[var(--dash-border)] hover:bg-[#fffdfb]">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[var(--dash-accent)] ring-1 ring-[var(--dash-border)]">
+          <Icon className="h-4.5 w-4.5" />
         </div>
-        <span className="rounded-full border border-[var(--dash-border)] bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--dash-muted)]">{badge}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-black text-[var(--dash-ink)]">{title}</p>
+            <span className="rounded-full border border-[var(--dash-border)] bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--dash-muted)]">{badge}</span>
+          </div>
+          <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--dash-muted-strong)]">{description}</p>
+          <p className="mt-3 inline-flex items-center gap-1 text-sm font-black text-[var(--dash-accent)]">
+            Ouvrir <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </p>
+        </div>
       </div>
-      <p className="mt-4 font-black text-[var(--dash-ink)]">{title}</p>
-      <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--dash-muted-strong)]">{description}</p>
-      <p className="mt-4 inline-flex items-center gap-1 text-sm font-black text-[var(--dash-accent)]">
-        Ouvrir <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-      </p>
     </Link>
   );
 }
@@ -428,7 +425,7 @@ function AttentionList({ products }: { products: AttentionProduct[] }) {
         const reason = attentionReason(product);
         const Icon = reason.icon;
         return (
-          <div key={product.id} className="dashboard-list-row p-4 hover:bg-[var(--dash-bg)]">
+          <div key={product.id} className="dashboard-list-row p-4 hover:bg-[#fffdfb]">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fff2e8] text-[var(--dash-accent)]">
                 <Icon className="h-4 w-4" />
@@ -471,7 +468,7 @@ function PriceMoversList({ movers }: { movers: PriceMover[] }) {
         const isDrop = mover.delta < 0;
         const barWidth = Math.min(100, Math.max(8, Math.abs(mover.percent) * 2));
         return (
-          <Link key={mover.id} href={`/dashboard/products?product=${mover.id}`} className="dashboard-list-row block p-4 hover:bg-[var(--dash-bg)]">
+          <Link key={mover.id} href={`/dashboard/products?product=${mover.id}`} className="dashboard-list-row block p-4 hover:bg-[#fffdfb]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-bold text-[var(--dash-ink)]">{mover.title || hostname(mover.url)}</p>
@@ -481,7 +478,7 @@ function PriceMoversList({ movers }: { movers: PriceMover[] }) {
                 {isDrop ? "-" : "+"}{Math.abs(mover.percent).toFixed(1)}%
               </span>
             </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--dash-bg)]">
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#f3e7de]">
               <div className={`h-full rounded-full ${isDrop ? "bg-[#5d8b22]" : "bg-[var(--dash-accent)]"}`} style={{ width: `${barWidth}%` }} />
             </div>
           </Link>

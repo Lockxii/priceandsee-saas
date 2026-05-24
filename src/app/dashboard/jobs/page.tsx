@@ -45,7 +45,7 @@ export default async function ScrapeJobsPage() {
             <EmptyState title="No jobs recorded yet" description="Run a check on a tracked URL to see jobs appear here." />
           ) : (
             jobs.map((job) => (
-              <div key={job.id} className="p-5 sm:p-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between hover:bg-[var(--dash-bg)] transition-colors">
+              <div key={job.id} className="p-5 sm:p-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between hover:bg-[#fffdfb] transition-colors">
                 <div className="min-w-0">
                   <p className="font-semibold text-[var(--dash-ink)] truncate">
                     {job.product.title || hostname(job.product.url)}

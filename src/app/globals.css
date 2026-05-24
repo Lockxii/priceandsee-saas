@@ -195,16 +195,17 @@
 
 /* Dashboard app shell (LP unchanged) */
 .dashboard-shell {
-  --dash-bg: #fffaf6;
+  --dash-bg: #ffffff;
   --dash-surface: #ffffff;
-  --dash-border: #f1ded1;
+  --dash-border: #eee2d9;
   --dash-ink: #24170f;
   --dash-ink-soft: #35251c;
   --dash-muted: #8a7668;
   --dash-muted-strong: #6f5a4d;
   --dash-accent: #ff690c;
-  --dash-shadow: 0 10px 30px -24px rgba(53, 37, 28, 0.45);
-  --dash-shadow-hover: 0 18px 42px -30px rgba(53, 37, 28, 0.5);
+  --dash-soft: #fff8f3;
+  --dash-shadow: 0 18px 50px -42px rgba(36, 23, 15, 0.38);
+  --dash-shadow-hover: 0 22px 58px -46px rgba(36, 23, 15, 0.42);
   --dash-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
