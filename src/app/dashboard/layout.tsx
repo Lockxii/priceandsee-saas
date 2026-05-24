@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { LayoutDashboard, Link as LinkIcon, Settings, Activity, Zap, PackageSearch, Radar } from "lucide-react";
+import { LayoutDashboard, Link as LinkIcon, Activity, Zap, Wrench } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { GuidedTour } from "./GuidedTour";
 import { AccountMenu } from "./AccountMenu";
@@ -54,13 +54,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <LinkIcon className="w-5 h-5" />
             <span className="font-medium">Tracked URLs</span>
           </Link>
-          <Link href="/dashboard/product-finder" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
-            <PackageSearch className="w-5 h-5" />
-            <span className="font-medium">Product Finder</span>
-          </Link>
-          <Link href="/dashboard/monitoring" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
-            <Radar className="w-5 h-5" />
-            <span className="font-medium">Monitoring</span>
+          <Link href="/dashboard/tools" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
+            <Wrench className="w-5 h-5" />
+            <span className="font-medium">Tools</span>
           </Link>
           <Link href="/dashboard/jobs" className="flex items-center gap-3 px-3 py-2 rounded-lg text-[#5b4638] hover:bg-[#fff2e8] hover:text-[#24170f] transition-colors">
             <Activity className="w-5 h-5" />
