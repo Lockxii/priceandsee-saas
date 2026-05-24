@@ -466,14 +466,14 @@ function getVariantInsights(product: ProductDetails) {
   };
 }
 
-function VariantsBundlesPanel({ product }: { product: ProductDetails }) {
+function VariantsBundlesPanel({ product, className = "" }: { product: ProductDetails; className?: string }) {
   const insights = getVariantInsights(product);
   const visibleItems = insights.items.slice(0, 6);
   const hiddenCount = Math.max(0, insights.items.length - visibleItems.length);
   const bestLabel = insights.bestValue ? bundleLabel(insights.bestValue.bundle) : "—";
 
   return (
-    <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
+    <div className={`${className} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
       <div className="flex items-center justify-between gap-3 mb-4 flex-shrink-0">
         <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Layers3 className="w-4 h-4 text-[#ff690c]" />Variants & Bundles</h3>
         <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{insights.items.length} detected</span>
@@ -703,6 +703,8 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   const hiddenMediaCount = Math.max(0, media.length - visibleMedia.length);
   const reviews = product.productReviews || [];
   const reviewsCsv = reviewsToCsv(reviews);
+  const hasMedia = media.length > 0;
+  const hasReviews = reviews.length > 0;
 
   const copyReviews = async () => {
     await navigator.clipboard.writeText(reviewsCsv);
@@ -711,17 +713,17 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-5 h-full overflow-hidden">
-      <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
-        <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
-          <div>
-            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Images className="w-4 h-4 text-[#ff690c]" />Product images</h3>
-            <p className="text-sm text-[#8a7668] mt-2">Download scraped product media. No generated assets.</p>
+    <div className={`grid grid-cols-1 ${hasMedia && hasReviews ? "lg:grid-cols-5" : ""} gap-4 sm:gap-5 h-full overflow-hidden`}>
+      {hasMedia && (
+        <div className={`${hasReviews ? "lg:col-span-3" : ""} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
+          <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
+            <div>
+              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Images className="w-4 h-4 text-[#ff690c]" />Product images</h3>
+              <p className="text-sm text-[#8a7668] mt-2">Download scraped product media. No generated assets.</p>
+            </div>
+            <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{media.length} files</span>
           </div>
-          <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{media.length} files</span>
-        </div>
 
-        {media.length ? (
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-3 flex-1 min-h-0 overflow-hidden">
             <div className="xl:col-span-3 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 overflow-hidden flex flex-col">
               <button type="button" onClick={() => focusedMedia && window.open(previewAssetUrl(focusedMedia.url, `${product.title || "product"}-preview`), "_blank", "noopener,noreferrer")} className="group relative flex-1 min-h-0 rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center cursor-zoom-in">
@@ -763,34 +765,28 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
               )}
             </div>
           </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
-            <Images className="w-8 h-8 mb-2 opacity-50 text-[#ff690c]" />
-            <p className="font-bold text-[#24170f]">No product media captured yet.</p>
-            <p className="text-sm mt-1 max-w-md">Run a fresh scrape to collect product gallery images.</p>
-          </div>
-        )}
-      </div>
-
-      <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
-        <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
-          <div>
-            <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><MessageSquareText className="w-4 h-4 text-[#ff690c]" />Reviews export</h3>
-            <p className="text-sm text-[#8a7668] mt-2">Export scraped review snippets / aggregate rating.</p>
-          </div>
-          <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{reviews.length}</span>
         </div>
+      )}
 
-        <div className="flex gap-2 flex-shrink-0 mb-4">
-          <button onClick={copyReviews} disabled={!reviews.length} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#24170f] text-[#fffaf6] text-xs font-black hover:bg-[#3a281d] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            {copiedReviews ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copiedReviews ? "Copied" : "Copy CSV"}
-          </button>
-          <button onClick={() => downloadTextFile(`${product.title || "product"}-reviews.csv`, reviewsCsv, "text/csv")} disabled={!reviews.length} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#f1ded1] bg-[#fffaf6] text-[#24170f] text-xs font-black hover:text-[#ff690c] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <FileDown className="w-3.5 h-3.5" />Export
-          </button>
-        </div>
+      {hasReviews && (
+        <div className={`${hasMedia ? "lg:col-span-2" : ""} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
+          <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
+            <div>
+              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><MessageSquareText className="w-4 h-4 text-[#ff690c]" />Reviews export</h3>
+              <p className="text-sm text-[#8a7668] mt-2">Export scraped review snippets / aggregate rating.</p>
+            </div>
+            <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{reviews.length}</span>
+          </div>
 
-        {reviews.length ? (
+          <div className="flex gap-2 flex-shrink-0 mb-4">
+            <button onClick={copyReviews} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#24170f] text-[#fffaf6] text-xs font-black hover:bg-[#3a281d] transition-colors">
+              {copiedReviews ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copiedReviews ? "Copied" : "Copy CSV"}
+            </button>
+            <button onClick={() => downloadTextFile(`${product.title || "product"}-reviews.csv`, reviewsCsv, "text/csv")} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#f1ded1] bg-[#fffaf6] text-[#24170f] text-xs font-black hover:text-[#ff690c] transition-colors">
+              <FileDown className="w-3.5 h-3.5" />Export
+            </button>
+          </div>
+
           <div className="flex-1 min-h-0 space-y-3 overflow-hidden">
             {reviews.slice(0, 6).map((review, index) => (
               <div key={index} className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
@@ -803,14 +799,8 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
               </div>
             ))}
           </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
-            <MessageSquareText className="w-8 h-8 mb-2 opacity-50 text-[#ff690c]" />
-            <p className="font-bold text-[#24170f]">No reviews captured yet.</p>
-            <p className="text-sm mt-1 max-w-md">Run a fresh scrape to collect reviews when the page exposes them.</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -969,7 +959,7 @@ function CompetitorSnapshotPanel({ competitors, technologies, revenue, revenueRa
   );
 }
 
-function BundleWidgetPreview({ product }: { product: ProductDetails }) {
+function BundleWidgetPreview({ product, className = "" }: { product: ProductDetails; className?: string }) {
   const [copied, setCopied] = useState(false);
   const html = product.bundleWidget?.html || "";
   const css = product.bundleWidget?.css || [];
@@ -986,7 +976,7 @@ function BundleWidgetPreview({ product }: { product: ProductDetails }) {
   };
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
+    <div className={`${className} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
       <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
         <div>
           <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Code2 className="w-4 h-4 text-[#ff690c]" />Bundle preview</h3>
@@ -1074,6 +1064,21 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
     };
   }, [product]);
 
+  const hasVariantData = Boolean(product?.bundlePrices?.length);
+  const hasBundleWidget = Boolean(product?.bundleWidget?.html?.trim());
+  const hasAssetsData = Boolean(product && (productMediaItems(product).length > 0 || (product.productReviews?.length || 0) > 0));
+  const hasMarketData = Boolean(derived && (derived.competitors.length > 0 || derived.competitorSeries.length > 0 || derived.technologies.length > 0));
+  const availableTabs = useMemo(() => [
+    "Overview",
+    ...(hasVariantData || hasBundleWidget ? ["Bundles"] : []),
+    ...(hasAssetsData ? ["Assets"] : []),
+    ...(hasMarketData ? ["Market"] : []),
+  ], [hasVariantData, hasBundleWidget, hasAssetsData, hasMarketData]);
+
+  useEffect(() => {
+    if (!availableTabs.includes(activeTab)) setActiveTab("Overview");
+  }, [activeTab, availableTabs]);
+
   return (
     <div className="fixed inset-0 z-[90] flex flex-col items-center justify-end">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200" onClick={onClose} />
@@ -1126,7 +1131,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
             </div>
 
             <div className="bg-[#fffaf6] px-5 sm:px-8 flex gap-4 sm:gap-8 border-b border-[#f1ded1] flex-shrink-0">
-              {["Overview", "Variants", "Assets", "Competitors", "Activity"].map((tab) => (
+              {availableTabs.map((tab) => (
                 <button 
                   key={tab} 
                   onClick={() => setActiveTab(tab)}
@@ -1205,10 +1210,10 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                   </div>
                 )}
 
-                {activeTab === "Variants" && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 h-full overflow-hidden">
-                    <VariantsBundlesPanel product={product} />
-                    <BundleWidgetPreview product={product} />
+                {activeTab === "Bundles" && (
+                  <div className={`grid grid-cols-1 ${hasVariantData && hasBundleWidget ? "lg:grid-cols-3" : ""} gap-4 sm:gap-5 h-full overflow-hidden`}>
+                    {hasVariantData && <VariantsBundlesPanel product={product} className={hasBundleWidget ? "lg:col-span-2" : ""} />}
+                    {hasBundleWidget && <BundleWidgetPreview product={product} />}
                   </div>
                 )}
 
@@ -1216,7 +1221,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                   <ProductAssetsPanel product={product} />
                 )}
 
-                {activeTab === "Competitors" && (
+                {activeTab === "Market" && (
                   derived.competitorSeries.length > 0 ? (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 h-full overflow-hidden">
                       <div className="lg:col-span-2 h-full min-h-0">
@@ -1259,19 +1264,6 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
                   )
                 )}
 
-                {activeTab === "Activity" && (
-                  <div className="bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden">
-                    <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-6">Scraping History</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-1">
-                      {(product.scrapingJobs?.length || 0) > 0 ? product.scrapingJobs!.map((job) => (
-                        <div key={job.id} className="px-5 py-4 flex items-center justify-between bg-[#fffaf6] rounded-xl border border-[#f1ded1]">
-                          <div><p className="text-sm font-semibold text-[#5b4638]">{new Date(job.createdAt).toLocaleDateString()} at {new Date(job.createdAt).toLocaleTimeString()}</p><p className="text-xs text-[#a99485]">{job.durationMs ? `${job.durationMs}ms` : job.source || "manual"}</p></div>
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${job.status === "SUCCESS" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}><CheckCircle2 className="w-3 h-3" />{job.status}</span>
-                        </div>
-                      )) : <div className="py-12 text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed">No scraping history yet.</div>}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </>
