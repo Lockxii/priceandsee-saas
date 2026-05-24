@@ -587,9 +587,10 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
   if (!hasSignals) return null;
 
   const metricGrid = trafficMetrics.length <= 2 ? "grid-cols-1 sm:grid-cols-2" : trafficMetrics.length <= 4 ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-4";
+  const panelHeightClass = countries.length > 0 ? "h-full min-h-[220px]" : "";
 
   return (
-    <div className="h-full min-h-[220px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+    <div className={`${panelHeightClass} rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col`.trim()}>
       <div className="flex items-start justify-between gap-3 flex-shrink-0">
         <div>
           <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
@@ -599,7 +600,7 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
       </div>
 
       {trafficMetrics.length > 0 && (
-        <div className={`mt-4 grid ${metricGrid} gap-3 ${countries.length ? "flex-shrink-0" : "flex-1 content-start"}`}>
+        <div className={`mt-4 grid ${metricGrid} gap-3 flex-shrink-0`}>
           {trafficMetrics.map((metric) => (
             <div key={metric.label} className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
               <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] truncate">{metric.label}</p>
@@ -610,7 +611,7 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
       )}
 
       {countries.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-1 min-h-0 overflow-hidden">
+        <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-shrink-0 overflow-hidden">
           <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Top countries</p>
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
             {countries.slice(0, 4).map((country) => (
@@ -863,7 +864,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
 
                     <div className={`grid grid-cols-1 ${hasTrafficData && (hasOverviewMedia || hasOverviewDescription || hasProductInfo) ? "lg:grid-cols-3" : ""} gap-4 sm:gap-5 flex-1 min-h-0 overflow-hidden`}>
                       {hasTrafficData && (
-                        <div className={`${hasOverviewMedia || hasOverviewDescription || hasProductInfo ? "lg:col-span-2" : ""} h-full min-h-0`.trim()}>
+                        <div className={`${hasOverviewMedia || hasOverviewDescription || hasProductInfo ? "lg:col-span-2" : ""} min-h-0`.trim()}>
                           {derived.visitHistory ? (
                             <VisitHistoryChart
                               data={derived.visitHistory}
