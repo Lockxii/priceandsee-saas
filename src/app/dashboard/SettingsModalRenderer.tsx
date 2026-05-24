@@ -45,7 +45,7 @@ export function SettingsModalRenderer({ user, updateProfileAction }: SettingsMod
 
       {/* Top Hover Zone */}
       <div 
-        className="peer group absolute top-0 inset-x-0 h-16 sm:h-20 z-10 flex items-start pt-4 justify-center cursor-pointer"
+        className="peer group absolute top-0 inset-x-0 h-24 sm:h-28 z-30 flex items-start pt-6 justify-center cursor-pointer"
         onClick={closeModal}
       >
         <div className="text-white/90 text-sm font-medium tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-md">
@@ -55,7 +55,7 @@ export function SettingsModalRenderer({ user, updateProfileAction }: SettingsMod
 
       {/* Modal */}
       <div 
-        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-12px)] sm:h-[calc(100vh-28px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
+        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-64px)] sm:h-[calc(100vh-76px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 sm:px-8 py-4 border-b border-[#f1ded1] flex justify-between items-center bg-white sticky top-0 z-10">
