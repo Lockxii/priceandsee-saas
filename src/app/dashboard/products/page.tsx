@@ -17,6 +17,11 @@ export default function ProductsPage() {
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    const productId = new URLSearchParams(window.location.search).get("product");
+    if (productId) setSelectedProductId(productId);
+  }, []);
+
   const fetchProducts = async () => {
     const res = await fetch("/api/products");
     const data = await res.json();
