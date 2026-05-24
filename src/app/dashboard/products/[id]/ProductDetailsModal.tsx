@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Code2, Layers3, Globe2, Users, DollarSign, Activity as ActivityIcon, CheckCircle2, Copy, Check, Download, Images, MessageSquareText, FileDown } from "lucide-react";
+import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Globe2, Users, DollarSign, Activity as ActivityIcon, Copy, Check, Download, Images, MessageSquareText, FileDown } from "lucide-react";
 import VisitHistoryChart, { type TrafficCountry } from "./VisitHistoryChart";
 import CompetitorRevenueChart, { type CompetitorRevenueSeries } from "./CompetitorRevenueChart";
 
@@ -71,33 +71,6 @@ type ProductReview = {
   count?: number;
 };
 
-type BundlePrice = {
-  name: string;
-  price: number | string;
-  sku?: string;
-  id?: string | number;
-  url?: string;
-  available?: boolean;
-  image?: string;
-  options?: Record<string, unknown>;
-};
-
-type BundleWidgetAsset = {
-  type?: string;
-  url: string;
-  source?: string;
-};
-
-type BundleWidget = {
-  html: string;
-  css?: string[];
-  assets?: BundleWidgetAsset[];
-  source?: string;
-  detectedBy?: string;
-  score?: number;
-  text?: string;
-};
-
 type ScrapingJob = {
   id: string;
   createdAt: string;
@@ -122,8 +95,6 @@ type ProductDetails = {
   reviewsCount?: number | null;
   productMedia?: ProductMedia[] | null;
   productReviews?: ProductReview[] | null;
-  bundlePrices?: BundlePrice[] | null;
-  bundleWidget?: BundleWidget | null;
   scrapingJobs?: ScrapingJob[];
   lastCheckedAt?: string | null;
   error?: string;
@@ -388,218 +359,6 @@ function buildCompetitorSeries(competitors: JsonRecord[]) {
       data,
     };
   }).filter((item): item is CompetitorRevenueSeries => item !== null);
-}
-
-function bundleLabel(bundle: BundlePrice) {
-  return bundle.name.replace(/\s+/g, " ").trim();
-}
-
-function bundlePriceNumber(bundle: BundlePrice) {
-  if (typeof bundle.price === "number") return Number.isFinite(bundle.price) ? bundle.price : undefined;
-  const match = String(bundle.price).replace(/\s/g, "").match(/\d+(?:[.,]\d+)?/);
-  if (!match) return undefined;
-  const price = Number(match[0].replace(",", "."));
-  return Number.isFinite(price) ? price : undefined;
-}
-
-function inferBundleQuantity(bundle: BundlePrice) {
-  const optionText = bundle.options ? Object.values(bundle.options).map(String).join(" ") : "";
-  const text = `${bundle.name} ${optionText}`.toLowerCase();
-  const packMatch = text.match(/(?:^|\b)(\d+(?:[.,]\d+)?)\s*(?:x|pack|packs|pc|pcs|piece|pieces|unit|units|bottle|bottles|set|sets|lot|lots)\b/i);
-  const leadingMatch = text.match(/^\s*(\d+(?:[.,]\d+)?)(?:\s|-)/);
-  const raw = packMatch?.[1] || leadingMatch?.[1];
-  if (!raw) return undefined;
-  const quantity = Number(raw.replace(",", "."));
-  return Number.isFinite(quantity) && quantity > 0 ? quantity : undefined;
-}
-
-function bundleOptionsText(bundle: BundlePrice) {
-  if (!bundle.options) return undefined;
-  const parts = Object.entries(bundle.options)
-    .map(([key, value]) => `${key.replace(/^option/i, "Option ")}: ${String(value)}`)
-    .slice(0, 3);
-  return parts.length ? parts.join(" · ") : undefined;
-}
-
-function formatBundleAmount(value: number | undefined, currency = "USD") {
-  if (value === undefined || !Number.isFinite(value)) return "—";
-  const amount = Number.isInteger(value) ? String(value) : value.toFixed(2);
-  return `${amount} ${currency}`;
-}
-
-function getVariantInsights(product: ProductDetails) {
-  const currency = product.currency || "USD";
-  const items = (product.bundlePrices || []).map((bundle) => {
-    const price = bundlePriceNumber(bundle);
-    const quantity = inferBundleQuantity(bundle);
-    return {
-      bundle,
-      price,
-      quantity,
-      unitPrice: price !== undefined && quantity ? price / quantity : price,
-      optionsText: bundleOptionsText(bundle),
-    };
-  });
-
-  const priced = items.filter((item) => item.price !== undefined);
-  const cheapest = priced.reduce<typeof priced[number] | undefined>((best, item) => !best || (item.price ?? Infinity) < (best.price ?? Infinity) ? item : best, undefined);
-  const bestValue = priced.reduce<typeof priced[number] | undefined>((best, item) => !best || (item.unitPrice ?? Infinity) < (best.unitPrice ?? Infinity) ? item : best, undefined);
-  const maxPrice = priced.reduce((max, item) => Math.max(max, item.price || 0), 0);
-  const minPrice = priced.reduce((min, item) => Math.min(min, item.price || Infinity), Infinity);
-  const spread = priced.length > 1 && Number.isFinite(minPrice) ? maxPrice - minPrice : undefined;
-  const availableCount = items.filter((item) => item.bundle.available !== false).length;
-  const optionKeys = Array.from(new Set(items.flatMap((item) => item.bundle.options ? Object.keys(item.bundle.options) : []))).slice(0, 5);
-  const singleUnit = priced.find((item) => item.quantity === 1);
-  const savings = singleUnit && bestValue?.unitPrice !== undefined ? ((singleUnit.unitPrice || 0) - bestValue.unitPrice) / (singleUnit.unitPrice || 1) * 100 : undefined;
-
-  return {
-    currency,
-    items: items.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity)),
-    priced,
-    cheapest,
-    bestValue,
-    maxPrice,
-    spread,
-    availableCount,
-    optionKeys,
-    savings: savings !== undefined && Number.isFinite(savings) ? savings : undefined,
-  };
-}
-
-function VariantsBundlesPanel({ product, className = "" }: { product: ProductDetails; className?: string }) {
-  const insights = getVariantInsights(product);
-  const visibleItems = insights.items.slice(0, 6);
-  const hiddenCount = Math.max(0, insights.items.length - visibleItems.length);
-  const bestLabel = insights.bestValue ? bundleLabel(insights.bestValue.bundle) : "—";
-
-  return (
-    <div className={`${className} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
-      <div className="flex items-center justify-between gap-3 mb-4 flex-shrink-0">
-        <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Layers3 className="w-4 h-4 text-[#ff690c]" />Variants & Bundles</h3>
-        <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{insights.items.length} detected</span>
-      </div>
-
-      {insights.items.length > 0 ? (
-        <>
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 flex-shrink-0">
-            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
-              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Cheapest</p>
-              <p className="mt-1 text-lg font-black text-[#24170f]">{formatBundleAmount(insights.cheapest?.price, insights.currency)}</p>
-              <p className="text-xs text-[#8a7668] truncate">{insights.cheapest ? bundleLabel(insights.cheapest.bundle) : "No price"}</p>
-            </div>
-            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
-              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Best value</p>
-              <p className="mt-1 text-lg font-black text-[#24170f]">{formatBundleAmount(insights.bestValue?.unitPrice, insights.currency)}</p>
-              <p className="text-xs text-[#8a7668] truncate">per unit · {bestLabel}</p>
-            </div>
-            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
-              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Spread</p>
-              <p className="mt-1 text-lg font-black text-[#24170f]">{formatBundleAmount(insights.spread, insights.currency)}</p>
-              <p className="text-xs text-[#8a7668] truncate">highest vs lowest</p>
-            </div>
-            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
-              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485]">Availability</p>
-              <p className="mt-1 text-lg font-black text-[#24170f]">{insights.availableCount}/{insights.items.length}</p>
-              <p className="text-xs text-[#8a7668] truncate">sellable options</p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 xl:grid-cols-5 gap-4 flex-1 min-h-0">
-            <div className="xl:col-span-3 rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex flex-col min-h-0 overflow-hidden">
-              <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                <p className="text-xs font-black uppercase tracking-wider text-[#24170f]">Price ladder</p>
-                {hiddenCount > 0 && <span className="text-xs font-bold text-[#8a7668]">+{hiddenCount} more</span>}
-              </div>
-              <div className="flex-1 min-h-0 flex flex-col justify-center gap-3">
-                {visibleItems.map((item, index) => {
-                  const width = item.price && insights.maxPrice ? Math.max(24, Math.round((item.price / insights.maxPrice) * 100)) : 18;
-                  return (
-                    <div key={`${bundleLabel(item.bundle)}-${index}`} className="rounded-xl border border-[#f1ded1] bg-white p-3 shadow-[0_1px_0_rgba(36,23,15,0.03)]">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-black text-[#5b4638] truncate">{bundleLabel(item.bundle)}</p>
-                          <p className="text-xs text-[#a99485] truncate">{item.optionsText || (item.quantity ? `${item.quantity} unit${item.quantity > 1 ? "s" : ""}` : item.bundle.sku ? `SKU ${item.bundle.sku}` : "Variant option")}</p>
-                        </div>
-                        <span className="font-black text-[#24170f] bg-[#fffaf6] px-3 py-1 rounded-lg border border-[#f1ded1] shadow-sm whitespace-nowrap">{formatBundleAmount(item.price, insights.currency)}</span>
-                      </div>
-                      <div className="mt-3 h-2 rounded-full bg-[#fffaf6] border border-[#f1ded1] overflow-hidden">
-                        <div className="h-full rounded-full bg-[#ff690c]" style={{ width: `${width}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="xl:col-span-2 grid grid-rows-2 gap-4 min-h-0">
-              <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden flex flex-col justify-between">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-[#24170f]">Value signal</p>
-                  <p className="mt-2 text-2xl font-black text-[#ff690c] truncate">{bestLabel}</p>
-                  <p className="mt-1 text-sm text-[#8a7668]">{insights.savings && insights.savings > 0 ? `${Math.round(insights.savings)}% cheaper per unit than single pack.` : "No clear multi-pack discount detected."}</p>
-                </div>
-                <div className="mt-3 inline-flex w-max items-center gap-2 rounded-full border border-[#f1ded1] bg-white px-3 py-1 text-xs font-bold text-[#5b4638]"><CheckCircle2 className="w-3.5 h-3.5 text-[#ff690c]" />Best pick</div>
-              </div>
-
-              <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
-                <p className="text-xs font-black uppercase tracking-wider text-[#24170f]">Detected options</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(insights.optionKeys.length ? insights.optionKeys : ["Pack size", "Price", "Availability"]).map((option) => (
-                    <span key={option} className="rounded-full border border-[#f1ded1] bg-white px-3 py-1 text-xs font-bold text-[#5b4638]">{option}</span>
-                  ))}
-                </div>
-                <p className="mt-3 text-xs text-[#8a7668] line-clamp-2">Captured from variants, bundle buttons, JSON offers or product widget data.</p>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
-          <Layers3 className="w-8 h-8 mb-2 opacity-50 text-[#ff690c]" />
-          <p className="font-bold text-[#24170f]">No variants or bundles detected yet.</p>
-          <p className="text-sm mt-1 max-w-md">Run a fresh scrape with the Railway backend healthy to capture variants, marketplace offers and bundle widgets.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function bundlePreviewCss() {
-  return `.pas-bundles{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#24170f;background:#fffaf6;border:1px solid #f1ded1;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(36,23,15,.08)}
-.pas-bundles__header{margin-bottom:12px}.pas-bundles__eyebrow{margin:0 0 4px;color:#ff690c;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.pas-bundles h3{margin:0;font-size:16px;line-height:1.2}.pas-bundle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;border:1px solid #f1ded1;border-radius:14px;background:white;padding:13px 14px;color:#5b4638;font-weight:800;cursor:pointer}.pas-bundle.is-selected,.pas-bundle:hover{border-color:#ff690c;box-shadow:0 0 0 2px rgba(255,105,12,.12)}.pas-bundle strong{color:#24170f;background:#fffaf6;border:1px solid #f1ded1;border-radius:10px;padding:5px 8px;white-space:nowrap}`;
-}
-
-function bundlePreviewDocument(html: string, css: string[] = []) {
-  return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>html,body{margin:0;background:#fffaf6}body{padding:14px}.pas-preview-root *{box-sizing:border-box}${bundlePreviewCss()}${css.join("\n")}</style></head><body><div class="pas-preview-root">${html}</div></body></html>`;
-}
-
-function bundleExportHtml(html: string, css: string[] = [], assets: BundleWidgetAsset[] = []) {
-  const stylesheets = assets
-    .filter((asset) => asset.type === "stylesheet")
-    .map((asset) => `<link rel="stylesheet" href="${escapeHtml(asset.url)}">`)
-    .join("\n");
-  const scripts = assets
-    .filter((asset) => asset.type === "script")
-    .map((asset) => `<script src="${escapeHtml(asset.url)}" defer></script>`)
-    .join("\n");
-  const inlineCss = css.length ? `<style>\n${css.join("\n")}\n</style>` : "";
-  return [stylesheets, inlineCss, html, scripts].filter(Boolean).join("\n");
-}
-
-function htmlToPlainText(markup: string) {
-  if (typeof window === "undefined") return markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  const div = document.createElement("div");
-  div.innerHTML = markup;
-  return div.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
 function assetProxyUrl(url: string, name: string, inline = false) {
@@ -959,73 +718,6 @@ function CompetitorSnapshotPanel({ competitors, technologies, revenue, revenueRa
   );
 }
 
-function BundleWidgetPreview({ product, className = "" }: { product: ProductDetails; className?: string }) {
-  const [copied, setCopied] = useState(false);
-  const html = product.bundleWidget?.html || "";
-  const css = product.bundleWidget?.css || [];
-  const assets = product.bundleWidget?.assets || [];
-  const exportHtml = html ? bundleExportHtml(html, css, assets) : "";
-  const previewDoc = html ? bundlePreviewDocument(html, css) : "";
-  const previewText = html ? htmlToPlainText(html).slice(0, 180) : "";
-
-  const handleCopy = async () => {
-    if (!exportHtml) return;
-    await navigator.clipboard.writeText(exportHtml);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-
-  return (
-    <div className={`${className} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
-      <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
-        <div>
-          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Code2 className="w-4 h-4 text-[#ff690c]" />Bundle preview</h3>
-          <p className="text-sm text-[#8a7668] mt-2">Real widget HTML scraped from the product page.</p>
-        </div>
-        <button onClick={handleCopy} disabled={!html} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#24170f] text-[#fffaf6] text-xs font-black hover:bg-[#3a281d] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          {copied ? "Copied" : "Copy HTML"}
-        </button>
-      </div>
-
-      {html ? (
-        <>
-          <div className="bg-[#fffaf6] rounded-xl border border-[#f1ded1] p-3 flex-1 min-h-0 overflow-hidden">
-            <iframe title="Bundle widget preview" sandbox="" srcDoc={previewDoc} className="w-full h-full min-h-[240px] rounded-lg bg-[#fffaf6] border-0" />
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3 flex-shrink-0">
-            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
-              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485] mb-1">Detected</p>
-              <p className="text-xs font-bold text-[#24170f] truncate">{product.bundleWidget?.source || "bundle widget"}</p>
-            </div>
-            <div className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
-              <p className="text-[10px] uppercase tracking-wider font-black text-[#a99485] mb-1">Assets</p>
-              <p className="text-xs font-bold text-[#24170f] truncate">{assets.length ? `${assets.length} linked asset${assets.length > 1 ? "s" : ""}` : css.length ? `${css.length} inline CSS block${css.length > 1 ? "s" : ""}` : "No linked assets"}</p>
-            </div>
-          </div>
-          {assets.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-2 flex-shrink-0">
-              {assets.slice(0, 4).map((asset) => (
-                <a key={asset.url} href={asset.url} target="_blank" rel="noreferrer" className="max-w-full truncate rounded-full border border-[#f1ded1] bg-white px-2.5 py-1 text-[11px] font-bold text-[#8a7668] hover:text-[#ff690c]">
-                  {asset.type || "asset"}
-                </a>
-              ))}
-            </div>
-          ) : previewText ? (
-            <p className="mt-3 text-xs text-[#8a7668] line-clamp-2 flex-shrink-0">{previewText}</p>
-          ) : null}
-        </>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center text-[#8a7668] bg-[#fffaf6] rounded-xl border border-[#f1ded1] border-dashed p-6">
-          <Code2 className="w-8 h-8 mb-2 opacity-50" />
-          <p className="font-bold text-[#24170f]">No bundle widget detected yet.</p>
-          <p className="text-sm mt-1">Run a new scrape after Railway is healthy to capture widget HTML/CSS/assets.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function ProductDetailsModal({ productId, onClose }: { productId: string, onClose: () => void }) {
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1064,16 +756,21 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
     };
   }, [product]);
 
-  const hasVariantData = Boolean(product?.bundlePrices?.length);
-  const hasBundleWidget = Boolean(product?.bundleWidget?.html?.trim());
-  const hasAssetsData = Boolean(product && (productMediaItems(product).length > 0 || (product.productReviews?.length || 0) > 0));
   const hasMarketData = Boolean(derived && (derived.competitors.length > 0 || derived.competitorSeries.length > 0 || derived.technologies.length > 0));
+  const overviewNiche = product ? metricText(product.brandMetrics, ["niche", "category", "industry"], "") : "";
+  const overviewAudience = product ? metricText(product.brandMetrics, ["target_persona", "targetPersona", "audience"], "") : "";
+  const hasPrice = product?.currentPrice !== null && product?.currentPrice !== undefined;
+  const hasStock = Boolean(product?.stockStatus);
+  const hasTopOverview = Boolean(hasPrice || hasStock || overviewNiche || overviewAudience);
+  const hasOverviewMedia = Boolean(product && productMediaItems(product).length > 0);
+  const hasOverviewDescription = Boolean(product?.description?.trim());
+  const hasProductInfo = Boolean(product?.brand || product?.sku || product?.rating || product?.reviewsCount);
+  const hasTrafficData = Boolean(derived && (derived.visitHistory || derived.visits !== undefined || derived.revenue !== undefined || derived.revenueRange.min !== undefined || derived.revenueRange.max !== undefined || derived.visitCountries.length > 0));
   const availableTabs = useMemo(() => [
     "Overview",
-    ...(hasVariantData || hasBundleWidget ? ["Bundles"] : []),
-    ...(hasAssetsData ? ["Assets"] : []),
+    "Assets",
     ...(hasMarketData ? ["Market"] : []),
-  ], [hasVariantData, hasBundleWidget, hasAssetsData, hasMarketData]);
+  ], [hasMarketData]);
 
   useEffect(() => {
     if (!availableTabs.includes(activeTab)) setActiveTab("Overview");
@@ -1146,74 +843,82 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
               <div className="w-full h-full flex flex-col">
                 {activeTab === "Overview" && (
                   <div className="flex-1 flex flex-col gap-4 sm:gap-5 overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 flex-shrink-0">
-                      <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
-                        <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Current Price</p>
-                        <div className="flex items-end gap-2">
-                          <p className="text-3xl font-black text-[#24170f]">{product.currentPrice ? `${product.currentPrice}` : "—"}</p>
-                          <p className="text-xl font-bold text-[#ff690c] mb-1">{product.currency || "€"}</p>
-                        </div>
-                      </div>
-                      <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
-                        <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Stock Status</p>
-                        {product.stockStatus ? (
-                          <span className={`inline-flex w-max items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${product.stockStatus === "In Stock" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-                            <div className={`w-2 h-2 rounded-full ${product.stockStatus === "In Stock" ? "bg-green-500" : "bg-red-500"}`}></div>
-                            {product.stockStatus}
-                          </span>
-                        ) : <span className="text-[#a99485] font-medium">Unknown</span>}
-                      </div>
-                      <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
-                        <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Niche / Category</p>
-                        <p className="text-2xl font-black text-[#24170f] truncate">{metricText(product.brandMetrics, ["niche", "category", "industry"], "—")}</p>
-                        <p className="text-xs text-[#a99485] mt-2 truncate">Targeting: {metricText(product.brandMetrics, ["target_persona", "targetPersona", "audience"], "Unknown")}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 flex-1 min-h-0 overflow-hidden">
-                      <div className="lg:col-span-2 h-full min-h-0">
-                        {derived.visitHistory ? (
-                          <VisitHistoryChart
-                            data={derived.visitHistory}
-                            totalVisits={derived.visits}
-                            countries={derived.visitCountries}
-                            className="h-full min-h-[330px]"
-                          />
-                        ) : (
-                          <TrafficSnapshotPanel
-                            visits={derived.visits}
-                            revenue={derived.revenue}
-                            revenueRange={derived.revenueRange}
-                            countries={derived.visitCountries}
-                            currency={product.currency || "USD"}
-                            metrics={product.brandMetrics}
-                          />
+                    {hasTopOverview && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 flex-shrink-0">
+                        {hasPrice && (
+                          <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
+                            <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Current Price</p>
+                            <div className="flex items-end gap-2">
+                              <p className="text-3xl font-black text-[#24170f]">{product.currentPrice}</p>
+                              {product.currency && <p className="text-xl font-bold text-[#ff690c] mb-1">{product.currency}</p>}
+                            </div>
+                          </div>
+                        )}
+                        {hasStock && (
+                          <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between">
+                            <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Stock Status</p>
+                            <span className={`inline-flex w-max items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold ${product.stockStatus === "In Stock" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                              <div className={`w-2 h-2 rounded-full ${product.stockStatus === "In Stock" ? "bg-green-500" : "bg-red-500"}`}></div>
+                              {product.stockStatus}
+                            </span>
+                          </div>
+                        )}
+                        {(overviewNiche || overviewAudience) && (
+                          <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex flex-col justify-between relative overflow-hidden">
+                            <p className="text-xs font-bold text-[#8a7668] uppercase tracking-wider mb-2">Niche / Category</p>
+                            {overviewNiche && <p className="text-2xl font-black text-[#24170f] truncate">{overviewNiche}</p>}
+                            {overviewAudience && <p className="text-xs text-[#a99485] mt-2 truncate">Targeting: {overviewAudience}</p>}
+                          </div>
                         )}
                       </div>
+                    )}
 
-                      <div className="lg:col-span-1 h-full flex flex-col gap-3 sm:gap-4 overflow-hidden">
-                        <ProductPhotoCard product={product} onOpenAssets={() => setActiveTab("Assets")} />
-                        <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.65] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[128px] max-h-[166px]">
-                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-3 flex-shrink-0"><AlignLeft className="w-5 h-5 text-[#ff690c]" />Description</h3>
-                          <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[3]">{product.description || "No description available for this product."}</p>
+                    <div className={`grid grid-cols-1 ${hasTrafficData && (hasOverviewMedia || hasOverviewDescription || hasProductInfo) ? "lg:grid-cols-3" : ""} gap-4 sm:gap-5 flex-1 min-h-0 overflow-hidden`}>
+                      {hasTrafficData && (
+                        <div className={`${hasOverviewMedia || hasOverviewDescription || hasProductInfo ? "lg:col-span-2" : ""} h-full min-h-0`.trim()}>
+                          {derived.visitHistory ? (
+                            <VisitHistoryChart
+                              data={derived.visitHistory}
+                              totalVisits={derived.visits}
+                              countries={derived.visitCountries}
+                              className="h-full min-h-[330px]"
+                            />
+                          ) : (
+                            <TrafficSnapshotPanel
+                              visits={derived.visits}
+                              revenue={derived.revenue}
+                              revenueRange={derived.revenueRange}
+                              countries={derived.visitCountries}
+                              currency={product.currency || "USD"}
+                              metrics={product.brandMetrics}
+                            />
+                          )}
                         </div>
-                        <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0 overflow-hidden">
-                          <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3">Product Info</h3>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Tag className="w-4 h-4" /> Brand</span><span className="font-bold text-[#24170f]">{product.brand || "N/A"}</span></div>
-                            <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU</span><span className="font-bold text-[#24170f] truncate max-w-[150px] text-right">{product.sku || "N/A"}</span></div>
-                            <div className="flex justify-between items-center"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Rating</span>{product.rating ? <div className="flex items-center gap-2"><span className="font-bold text-[#ff690c]">{product.rating}</span><span className="text-xs text-[#8a7668]">({product.reviewsCount})</span></div> : <span className="text-[#a99485] text-sm font-medium">No rating</span>}</div>
-                          </div>
+                      )}
+
+                      {(hasOverviewMedia || hasOverviewDescription || hasProductInfo) && (
+                        <div className={`${hasTrafficData ? "lg:col-span-1" : ""} h-full flex flex-col gap-3 sm:gap-4 overflow-hidden`.trim()}>
+                          {hasOverviewMedia && <ProductPhotoCard product={product} onOpenAssets={() => setActiveTab("Assets")} />}
+                          {hasOverviewDescription && (
+                            <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-sm flex-[0.65] flex flex-col p-4 sm:p-5 overflow-hidden min-h-[128px] max-h-[166px]">
+                              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-3 mb-3 flex-shrink-0"><AlignLeft className="w-5 h-5 text-[#ff690c]" />Description</h3>
+                              <p className="text-[#5b4638] text-sm leading-relaxed p-4 bg-[#fffaf6] rounded-xl border border-[#f1ded1] flex-1 overflow-hidden line-clamp-[3]">{product.description}</p>
+                            </div>
+                          )}
+                          {hasProductInfo && (
+                            <div className="bg-white p-4 rounded-2xl border border-[#f1ded1] shadow-sm flex-shrink-0 overflow-hidden">
+                              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider mb-3">Product Info</h3>
+                              <div className="space-y-2">
+                                {product.brand && <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Tag className="w-4 h-4" /> Brand</span><span className="font-bold text-[#24170f]">{product.brand}</span></div>}
+                                {product.sku && <div className="flex justify-between items-center pb-2 border-b border-[#f1ded1]"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Hash className="w-4 h-4" /> SKU</span><span className="font-bold text-[#24170f] truncate max-w-[150px] text-right">{product.sku}</span></div>}
+                                {product.rating && <div className="flex justify-between items-center"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Rating</span><div className="flex items-center gap-2"><span className="font-bold text-[#ff690c]">{product.rating}</span>{product.reviewsCount ? <span className="text-xs text-[#8a7668]">({product.reviewsCount})</span> : null}</div></div>}
+                                {!product.rating && product.reviewsCount ? <div className="flex justify-between items-center"><span className="text-[#8a7668] text-sm font-medium flex items-center gap-2"><Star className="w-4 h-4" /> Reviews</span><span className="font-bold text-[#ff690c]">{product.reviewsCount}</span></div> : null}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )}
                     </div>
-                  </div>
-                )}
-
-                {activeTab === "Bundles" && (
-                  <div className={`grid grid-cols-1 ${hasVariantData && hasBundleWidget ? "lg:grid-cols-3" : ""} gap-4 sm:gap-5 h-full overflow-hidden`}>
-                    {hasVariantData && <VariantsBundlesPanel product={product} className={hasBundleWidget ? "lg:col-span-2" : ""} />}
-                    {hasBundleWidget && <BundleWidgetPreview product={product} />}
                   </div>
                 )}
 
