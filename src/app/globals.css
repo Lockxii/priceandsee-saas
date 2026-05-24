@@ -204,4 +204,98 @@
   --dash-muted-strong: #6f5a4d;
   --dash-accent: #ff690c;
   --dash-shadow: 0 10px 30px -24px rgba(53, 37, 28, 0.45);
+  --dash-shadow-hover: 0 18px 42px -30px rgba(53, 37, 28, 0.5);
+  --dash-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dashboard-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dashboard-soft-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-page-transition {
+  animation: dashboard-enter 260ms var(--dash-ease) both;
+}
+
+.dashboard-surface-transition {
+  transition:
+    border-color 180ms var(--dash-ease),
+    box-shadow 220ms var(--dash-ease),
+    background-color 180ms var(--dash-ease),
+    transform 220ms var(--dash-ease),
+    opacity 180ms var(--dash-ease),
+    height 260ms var(--dash-ease),
+    width 260ms var(--dash-ease);
+  will-change: transform;
+}
+
+.dashboard-surface-transition:hover {
+  box-shadow: var(--dash-shadow-hover);
+}
+
+.dashboard-lift-hover:hover {
+  transform: translateY(-1px);
+}
+
+.dashboard-list-row {
+  transition:
+    background-color 180ms var(--dash-ease),
+    transform 180ms var(--dash-ease),
+    border-color 180ms var(--dash-ease),
+    opacity 180ms var(--dash-ease);
+}
+
+.dashboard-list-row:hover {
+  transform: translateX(1px);
+}
+
+.dashboard-pop-in {
+  animation: dashboard-soft-pop 220ms var(--dash-ease) both;
+}
+
+.dashboard-resize-transition {
+  transition:
+    grid-template-columns 260ms var(--dash-ease),
+    grid-template-rows 260ms var(--dash-ease),
+    flex-basis 260ms var(--dash-ease),
+    max-height 260ms var(--dash-ease),
+    min-height 260ms var(--dash-ease),
+    padding 220ms var(--dash-ease),
+    gap 220ms var(--dash-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page-transition,
+  .dashboard-pop-in {
+    animation: none;
+  }
+
+  .dashboard-surface-transition,
+  .dashboard-list-row,
+  .dashboard-resize-transition {
+    transition: none;
+  }
+
+  .dashboard-surface-transition:hover,
+  .dashboard-lift-hover:hover,
+  .dashboard-list-row:hover {
+    transform: none;
+  }
 }

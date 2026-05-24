@@ -16,14 +16,14 @@ export function WorkflowBanner({ steps, title = "Prochaine étape" }: { steps: W
 
   if (completed === steps.length) {
     return (
-      <div className="rounded-2xl border border-[#d8e8c8] bg-[#f2f8ec] p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="dashboard-surface-transition dashboard-resize-transition rounded-2xl border border-[#d8e8c8] bg-[#f2f8ec] p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-black text-[#4f761d]">Parcours terminé</p>
           <p className="text-sm text-[#5b4638] mt-1">Tes URLs sont suivies. Continue avec les outils pour trouver médias, promos, reviews et concurrents.</p>
         </div>
         <Link
           href="/dashboard/tools"
-          className="inline-flex items-center gap-2 rounded-xl bg-white border border-[#d8e8c8] px-4 py-2 text-sm font-bold text-[#4f761d] hover:bg-[#fffaf6]"
+          className="inline-flex items-center gap-2 rounded-xl bg-white border border-[#d8e8c8] px-4 py-2 text-sm font-bold text-[#4f761d] hover:bg-[#fffaf6] dashboard-surface-transition dashboard-lift-hover"
         >
           Explorer les outils <ChevronRight className="h-4 w-4" />
         </Link>
@@ -32,7 +32,7 @@ export function WorkflowBanner({ steps, title = "Prochaine étape" }: { steps: W
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--dash-border)] bg-white p-5 shadow-[var(--dash-shadow)]">
+    <div className="dashboard-surface-transition dashboard-resize-transition rounded-2xl border border-[var(--dash-border)] bg-white p-5 shadow-[var(--dash-shadow)]">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--dash-accent)]">{title}</p>
@@ -46,7 +46,7 @@ export function WorkflowBanner({ steps, title = "Prochaine étape" }: { steps: W
         {activeStep ? (
           <Link
             href={activeStep.href}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--dash-accent)] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#e55e0b] transition-colors"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--dash-accent)] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#e55e0b] transition-colors dashboard-surface-transition dashboard-lift-hover"
           >
             Continuer <ChevronRight className="h-4 w-4" />
           </Link>
@@ -57,7 +57,7 @@ export function WorkflowBanner({ steps, title = "Prochaine étape" }: { steps: W
         {steps.map((step, index) => (
           <li
             key={step.id}
-            className={`rounded-xl border px-3 py-3 ${
+             className={`dashboard-list-row dashboard-pop-in rounded-xl border px-3 py-3 ${
               step.active
                 ? "border-[#ffd7bd] bg-[#fff8f2]"
                 : step.done

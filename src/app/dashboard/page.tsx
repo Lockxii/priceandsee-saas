@@ -93,7 +93,7 @@ export default async function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-[var(--dash-border)] bg-white p-6 sm:p-7 shadow-[var(--dash-shadow)]">
+      <section className="dashboard-surface-transition dashboard-resize-transition rounded-2xl border border-[var(--dash-border)] bg-white p-6 sm:p-7 shadow-[var(--dash-shadow)]">
         <p className="text-sm font-medium text-[var(--dash-muted)]">Bon retour</p>
         <h2 className="mt-1 text-2xl sm:text-3xl font-black tracking-tight text-[var(--dash-ink)]">
           Salut {displayName}, voici ton tableau de bord
@@ -104,21 +104,21 @@ export default async function DashboardOverview() {
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
             href="/dashboard/products"
-            className="inline-flex items-center gap-2 rounded-xl bg-[var(--dash-accent)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(255,105,12,0.15)] hover:bg-[#e55e0b] transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--dash-accent)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(255,105,12,0.15)] hover:bg-[#e55e0b] transition-colors dashboard-surface-transition dashboard-lift-hover"
           >
             <Plus className="h-4 w-4" /> Ajouter une URL
           </Link>
           {priceDrops > 0 ? (
             <Link
               href="/dashboard/products"
-              className="inline-flex items-center gap-2 rounded-xl border border-[#d8e8c8] bg-[#f2f8ec] px-4 py-2.5 text-sm font-bold text-[#4f761d] hover:bg-[#e8f4dc] transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#d8e8c8] bg-[#f2f8ec] px-4 py-2.5 text-sm font-bold text-[#4f761d] hover:bg-[#e8f4dc] transition-colors dashboard-surface-transition dashboard-lift-hover"
             >
               <TrendingDown className="h-4 w-4" /> {priceDrops} baisse{priceDrops > 1 ? "s" : ""} détectée{priceDrops > 1 ? "s" : ""}
             </Link>
           ) : (
             <Link
               href="/dashboard/tools"
-              className="inline-flex items-center gap-2 rounded-xl border border-[var(--dash-border)] px-4 py-2.5 text-sm font-bold text-[var(--dash-muted-strong)] hover:bg-[var(--dash-bg)] transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--dash-border)] px-4 py-2.5 text-sm font-bold text-[var(--dash-muted-strong)] hover:bg-[var(--dash-bg)] transition-colors dashboard-surface-transition"
             >
               Explorer les outils <ArrowRight className="h-4 w-4" />
             </Link>
@@ -180,7 +180,7 @@ export default async function DashboardOverview() {
             recentJobs.map((job) => (
               <div
                 key={job.id}
-                className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-[var(--dash-bg)] transition-colors"
+                  className="px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-[var(--dash-bg)] dashboard-list-row"
               >
                 <div className="min-w-0">
                   <p className="font-semibold text-[var(--dash-ink)] truncate">

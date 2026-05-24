@@ -54,7 +54,7 @@ function NavLink({ item }: { item: NavItem }) {
     <Link
       href={item.href}
       data-tour={item.tourId}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+      className={`dashboard-list-row flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
         active
           ? "bg-[#fff2e8] text-[#ff690c] font-semibold shadow-[inset_0_0_0_1px_rgba(255,105,12,0.12)]"
           : "text-[#5b4638] font-medium hover:bg-[#fff8f2] hover:text-[#24170f]"

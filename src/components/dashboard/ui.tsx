@@ -13,7 +13,7 @@ export function DashboardCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-[var(--dash-border)] bg-[var(--dash-surface)] shadow-[var(--dash-shadow)] overflow-hidden ${padding ? "" : ""} ${className}`}
+      className={`dashboard-surface-transition dashboard-resize-transition rounded-2xl border border-[var(--dash-border)] bg-[var(--dash-surface)] shadow-[var(--dash-shadow)] overflow-hidden ${padding ? "" : ""} ${className}`}
     >
       {children}
     </div>
@@ -99,7 +99,7 @@ export function StatCard({
           : "bg-[#fff2e8] text-[var(--dash-accent)]";
 
   return (
-    <div className="rounded-2xl border border-[var(--dash-border)] bg-[var(--dash-surface)] p-5 shadow-[var(--dash-shadow)] flex items-start gap-4">
+    <div className="dashboard-surface-transition dashboard-lift-hover rounded-2xl border border-[var(--dash-border)] bg-[var(--dash-surface)] p-5 shadow-[var(--dash-shadow)] flex items-start gap-4">
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${iconTone}`}>
         <Icon className="w-5 h-5" />
       </div>
@@ -145,7 +145,7 @@ export function StatusBadge({
   }[tone];
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${classes}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border dashboard-surface-transition ${classes}`}>
       {children}
     </span>
   );
@@ -159,7 +159,7 @@ export function PrimaryButton({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--dash-accent)] text-white rounded-xl text-sm font-bold hover:bg-[#e55e0b] transition-colors disabled:opacity-60 shadow-[0_8px_18px_rgba(255,105,12,0.15)] ${className}`}
+      className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--dash-accent)] text-white rounded-xl text-sm font-bold hover:bg-[#e55e0b] transition-colors disabled:opacity-60 shadow-[0_8px_18px_rgba(255,105,12,0.15)] dashboard-surface-transition dashboard-lift-hover ${className}`}
       {...props}
     >
       {children}
@@ -175,7 +175,7 @@ export function SecondaryButton({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 px-4 py-2 border border-[var(--dash-border)] rounded-xl text-sm font-semibold text-[var(--dash-ink-soft)] hover:bg-[var(--dash-bg)] transition-colors disabled:opacity-60 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 px-4 py-2 border border-[var(--dash-border)] rounded-xl text-sm font-semibold text-[var(--dash-ink-soft)] hover:bg-[var(--dash-bg)] transition-colors disabled:opacity-60 dashboard-surface-transition ${className}`}
       {...props}
     >
       {children}
@@ -205,7 +205,7 @@ export function DashInput({
 }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className={`w-full px-4 py-3 rounded-xl border border-[#e7cdbb] bg-white text-[var(--dash-ink)] placeholder:text-[#a99485] focus:ring-2 focus:ring-[var(--dash-accent)]/25 focus:border-[var(--dash-accent)] outline-none transition-shadow ${className}`}
+      className={`w-full px-4 py-3 rounded-xl border border-[#e7cdbb] bg-white text-[var(--dash-ink)] placeholder:text-[#a99485] focus:ring-2 focus:ring-[var(--dash-accent)]/25 focus:border-[var(--dash-accent)] outline-none transition-shadow dashboard-surface-transition ${className}`}
       {...props}
     />
   );

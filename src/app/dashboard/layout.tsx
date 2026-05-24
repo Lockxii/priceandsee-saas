@@ -51,7 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="flex-1 flex flex-col min-w-0">
         <DashboardHeader plan={user?.plan} />
         <div className="flex-1 overflow-y-auto pb-28 sm:pb-0">
-          <div className="p-6 sm:p-8 max-w-[1400px] mx-auto w-full">{children}</div>
+          <div className="dashboard-page-transition p-6 sm:p-8 max-w-[1400px] mx-auto w-full">{children}</div>
         </div>
         <div className="shrink-0 border-t border-[var(--dash-border)] bg-white p-3 sm:hidden">{accountMenu}</div>
         <DashboardMobileNav />
