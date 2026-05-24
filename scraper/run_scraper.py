@@ -1446,6 +1446,14 @@ def is_useful(data: dict[str, Any]) -> bool:
     return bool(data.get("title") or data.get("price") is not None or data.get("brand") or data.get("description"))
 
 
+def is_thin_product_data(data: dict[str, Any]) -> bool:
+    """True when Scrapling only found basics and external providers can add value."""
+    rich_keys = ["productMedia", "productReviews", "description", "rating", "reviewsCount", "brandSignals"]
+    if not is_useful(data):
+        return True
+    return sum(1 for key in rich_keys if data.get(key) not in (None, "", [], {})) < 2
+
+
 def scrape_url(url: str, mode: str | None = None, timeout_ms: int | None = None, wait_ms: int | None = None) -> dict[str, Any]:
     start = time.time()
     mode = (mode or DEFAULT_MODE or "auto").lower()
@@ -1478,7 +1486,8 @@ def scrape_url(url: str, mode: str | None = None, timeout_ms: int | None = None,
                 data = merge_provider_results(data, url, public_provider_results)
             if is_useful(data):
                 external_results: list[Any] = []
-                if should_run_external_always and should_run_external_always():
+                should_enrich = (should_run_external_always and should_run_external_always()) or is_thin_product_data(data)
+                if should_enrich:
                     external_results = run_external_provider_fallbacks(url, timeout_ms, wait_ms)
                     data = merge_provider_results(data, url, external_results)
                 return {

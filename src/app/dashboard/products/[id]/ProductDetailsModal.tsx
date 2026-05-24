@@ -571,57 +571,47 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
   const visitDuration = metrics ? readNumberFromKeys(metrics, ["visit_duration", "visitDuration"]) : undefined;
   const growth = metrics ? readNumberFromKeys(metrics, ["growth_30d", "growth30d"]) : undefined;
   const productCount = metrics ? readNumberFromKeys(metrics, ["product_count", "productCount"]) : undefined;
+  const hasRevenue = revenue !== undefined || revenueRange.min !== undefined || revenueRange.max !== undefined;
   const trafficMetrics = [
-    { label: "Monthly visits", value: formatCompact(visits), strong: true },
-    { label: "Revenue", value: formatMoneyRange(revenueRange.min, revenueRange.max, currency) },
-    { label: "Rank", value: rank ? `#${formatCompact(rank)}` : "—" },
-    { label: "30d", value: growth !== undefined ? `${growth > 0 ? "+" : ""}${growth.toFixed(1)}%` : "—" },
-    { label: "Bounce", value: bounceRate !== undefined ? `${(bounceRate <= 1 ? bounceRate * 100 : bounceRate).toFixed(0)}%` : "—" },
-    { label: "Pages", value: pagesPerVisit !== undefined ? pagesPerVisit.toFixed(1) : "—" },
-    { label: "Duration", value: visitDuration !== undefined ? `${Math.round(visitDuration)}s` : "—" },
-    { label: "Products", value: formatCompact(productCount) },
-  ];
-  const hasSignals = visits !== undefined || revenue !== undefined || countries.length > 0 || rank !== undefined || productCount !== undefined;
+    visits !== undefined ? { label: "Monthly visits", value: formatCompact(visits), strong: true } : null,
+    hasRevenue ? { label: "Revenue", value: revenueRange.min !== undefined || revenueRange.max !== undefined ? formatMoneyRange(revenueRange.min, revenueRange.max, currency) : formatMoney(revenue, currency) } : null,
+    rank !== undefined ? { label: "Rank", value: `#${formatCompact(rank)}` } : null,
+    growth !== undefined ? { label: "30d", value: `${growth > 0 ? "+" : ""}${growth.toFixed(1)}%` } : null,
+    bounceRate !== undefined ? { label: "Bounce", value: `${(bounceRate <= 1 ? bounceRate * 100 : bounceRate).toFixed(0)}%` } : null,
+    pagesPerVisit !== undefined ? { label: "Pages", value: pagesPerVisit.toFixed(1) } : null,
+    visitDuration !== undefined ? { label: "Duration", value: `${Math.round(visitDuration)}s` } : null,
+    productCount !== undefined ? { label: "Products", value: formatCompact(productCount) } : null,
+  ].filter((metric): metric is { label: string; value: string; strong?: boolean } => metric !== null);
+  const hasSignals = trafficMetrics.length > 0 || countries.length > 0;
 
-  if (!hasSignals) {
-    return (
-      <div className="h-full min-h-[220px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
-        <div className="flex items-start justify-between gap-3 flex-shrink-0">
-          <div>
-            <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
-            <p className="mt-1 text-sm text-[#8a7668]">No BrandSearch traffic data yet.</p>
-          </div>
-          <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
-        </div>
-        <div className="mt-5 rounded-2xl border border-dashed border-[#f1ded1] bg-[#fffaf6] p-5 text-sm text-[#8a7668]">
-          Run a fresh scrape or wait for BrandSearch to return traffic metrics for this domain.
-        </div>
-      </div>
-    );
-  }
+  if (!hasSignals) return null;
+
+  const metricGrid = trafficMetrics.length <= 2 ? "grid-cols-1 sm:grid-cols-2" : trafficMetrics.length <= 4 ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-4";
 
   return (
-    <div className="h-full min-h-[300px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+    <div className="h-full min-h-[220px] rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm overflow-hidden flex flex-col">
       <div className="flex items-start justify-between gap-3 flex-shrink-0">
         <div>
           <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#ff690c]" />Traffic snapshot</h3>
-          <p className="mt-1 text-sm text-[#8a7668]">Latest documented BrandSearch snapshot. Traffic history appears when projected visit fields are returned.</p>
+          <p className="mt-1 text-sm text-[#8a7668]">Latest BrandSearch signals returned for this brand.</p>
         </div>
         <span className="rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1 text-xs font-bold text-[#8a7668]">BrandSearch</span>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 xl:grid-cols-4 gap-3 flex-shrink-0">
-        {trafficMetrics.map((metric) => (
-          <div key={metric.label} className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] truncate">{metric.label}</p>
-            <p className={`${metric.strong ? "text-3xl" : "text-xl"} mt-2 font-black leading-none text-[#24170f] truncate`}>{metric.value}</p>
-          </div>
-        ))}
-      </div>
+      {trafficMetrics.length > 0 && (
+        <div className={`mt-4 grid ${metricGrid} gap-3 ${countries.length ? "flex-shrink-0" : "flex-1 content-start"}`}>
+          {trafficMetrics.map((metric) => (
+            <div key={metric.label} className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-3 min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] truncate">{metric.label}</p>
+              <p className={`${metric.strong ? "text-3xl" : "text-xl"} mt-2 font-black leading-none text-[#24170f] truncate`}>{metric.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-1 min-h-0 overflow-hidden">
-        <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Top countries</p>
-        {countries.length ? (
+      {countries.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 flex-1 min-h-0 overflow-hidden">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Top countries</p>
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-2">
             {countries.slice(0, 4).map((country) => (
               <div key={`${country.label}-${country.share}`} className="flex items-center justify-between gap-3 rounded-xl border border-[#f1ded1] bg-white px-3 py-2">
@@ -630,10 +620,8 @@ function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, curren
               </div>
             ))}
           </div>
-        ) : (
-          <p className="text-sm text-[#8a7668]">No country split returned by BrandSearch for this brand.</p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

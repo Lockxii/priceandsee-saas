@@ -68,7 +68,7 @@ SCRAPER_WAIT_MS="1200"
 
 # External fallback providers. Public Shopify/WooCommerce endpoints run automatically.
 SCRAPER_EXTERNAL_PROVIDERS="firecrawl,scrapegraph,crawl4ai,camoufox,browser_use"
-SCRAPER_EXTERNAL_PROVIDERS_ALWAYS="false" # true = enrich even when Scrapling already worked
+SCRAPER_EXTERNAL_PROVIDERS_ALWAYS="false" # false = providers run on fallback/thin data; true = always enrich
 FIRECRAWL_API_KEY="" # Firecrawl v2 scrape API
 FIRECRAWL_API_URL="https://api.firecrawl.dev/v2/scrape" # override if self-hosted
 SGAI_API_KEY="" # ScrapeGraphAI API / scrapegraph-py, SCRAPEGRAPH_API_KEY also works
