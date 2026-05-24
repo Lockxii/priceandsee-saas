@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, ExternalLink, Filter, PackageSearch, Search, Sparkles } from "lucide-react";
+import { CheckSquare, Download, ExternalLink, Filter, PackageSearch, Search, Sparkles, Square } from "lucide-react";
 
 type FinderProduct = {
   store: string;
@@ -70,6 +70,10 @@ function productPrice(item: FinderProduct) {
   return item.price ?? item.minPrice ?? item.maxPrice ?? null;
 }
 
+function productKey(item: FinderProduct) {
+  return item.url || `${item.store}:${item.handle || item.title}`;
+}
+
 export default function ProductFinderPage() {
   const [stores, setStores] = useState("bleame.com\ntryestrid.com\nmanscaped.com");
   const [products, setProducts] = useState<FinderProduct[]>([]);
@@ -79,6 +83,9 @@ export default function ProductFinderPage() {
   const [filter, setFilter] = useState<"all" | "discounted" | "in-stock" | "out-of-stock" | "newest">("all");
   const [sort, setSort] = useState<"discount" | "price-desc" | "price-asc" | "newest">("discount");
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackMessage, setTrackMessage] = useState("");
 
   const runFinder = async () => {
     setLoading(true);
@@ -93,6 +100,8 @@ export default function ProductFinderPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Product Finder failed");
       setProducts(data.products || []);
+      setSelected(new Set());
+      setTrackMessage("");
       setErrors(data.errors || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Product Finder failed");
@@ -119,6 +128,73 @@ export default function ProductFinderPage() {
       });
   }, [products, query, filter, sort]);
 
+  const visibleProducts = useMemo(() => filteredProducts.slice(0, 120), [filteredProducts]);
+
+  const selectedProducts = useMemo(() => products.filter((item) => selected.has(productKey(item))), [products, selected]);
+
+  const toggleProduct = (item: FinderProduct) => {
+    const key = productKey(item);
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleVisible = () => {
+    setSelected((current) => {
+      const next = new Set(current);
+      const visibleKeys = visibleProducts.map(productKey);
+      const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((key) => next.has(key));
+      visibleKeys.forEach((key) => {
+        if (allVisibleSelected) next.delete(key);
+        else next.add(key);
+      });
+      return next;
+    });
+  };
+
+  const buildTrackMessage = (data: { message?: string; added?: number; duplicates?: string[]; skippedQuota?: number; remainingSlots?: number }) => {
+    const parts = [data.message || "Tracked."];
+    if (data.duplicates?.length) parts.push(`${data.duplicates.length} duplicate${data.duplicates.length > 1 ? "s" : ""} ignored.`);
+    if (data.skippedQuota) parts.push(`${data.skippedQuota} skipped by quota.`);
+    if (typeof data.remainingSlots === "number") parts.push(`${data.remainingSlots} slot${data.remainingSlots > 1 ? "s" : ""} left.`);
+    return parts.join(" ");
+  };
+
+  const trackSelected = async () => {
+    if (!selectedProducts.length) return;
+    setTrackLoading(true);
+    setTrackMessage("");
+    setError("");
+    try {
+      const res = await fetch("/api/product-finder/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          products: selectedProducts.map((item) => ({
+            url: item.url,
+            title: item.title,
+            image: item.image,
+            price: productPrice(item),
+            currency: "USD",
+            stockStatus: item.available === false ? "Out of Stock" : item.available === true ? "In Stock" : undefined,
+            store: item.store,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || "Could not track selected products");
+      setTrackMessage(buildTrackMessage(data));
+      if (data.added) setSelected(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not track selected products");
+    } finally {
+      setTrackLoading(false);
+    }
+  };
+
   const stats = useMemo(() => {
     const storesCount = new Set(products.map((item) => item.store)).size;
     const discounted = products.filter((item) => (item.discountPercent || 0) > 0).length;
@@ -143,9 +219,14 @@ export default function ProductFinderPage() {
             <p className="mt-2 text-[#6f5a4d] max-w-2xl">Paste Shopify stores, pull their real /products.json catalogs, compare products, discounts, stock and launch dates. No generated data.</p>
           </div>
           {products.length > 0 && (
-            <button onClick={() => downloadCsv(filteredProducts)} className="inline-flex items-center gap-2 rounded-xl bg-[#24170f] px-4 py-2 text-sm font-black text-[#fffaf6] hover:bg-[#3a281d]">
-              <Download className="w-4 h-4" />Export CSV
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={trackSelected} disabled={!selectedProducts.length || trackLoading} className="inline-flex items-center gap-2 rounded-xl bg-[#ff690c] px-4 py-2 text-sm font-black text-white shadow-[0_8px_18px_rgba(255,105,12,0.18)] hover:bg-[#e85f0a] disabled:opacity-50">
+                <CheckSquare className="w-4 h-4" />{trackLoading ? "Tracking..." : `Track selected${selectedProducts.length ? ` (${selectedProducts.length})` : ""}`}
+              </button>
+              <button onClick={() => downloadCsv(filteredProducts)} className="inline-flex items-center gap-2 rounded-xl bg-[#24170f] px-4 py-2 text-sm font-black text-[#fffaf6] hover:bg-[#3a281d]">
+                <Download className="w-4 h-4" />Export CSV
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -166,6 +247,7 @@ export default function ProductFinderPage() {
             {loading ? "Scraping catalogs..." : "Find products"}
           </button>
           {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-600">{error}</p>}
+          {trackMessage && <p className="mt-3 rounded-xl bg-[#fffaf6] border border-[#f1ded1] p-3 text-sm font-bold text-[#5b4638]">{trackMessage}</p>}
           {errors.length > 0 && <div className="mt-3 space-y-1 text-xs text-[#8a7668]">{errors.slice(0, 4).map((item) => <p key={item.store}>{item.store}: {item.error}</p>)}</div>}
         </section>
 
@@ -180,6 +262,10 @@ export default function ProductFinderPage() {
 
           <div className="bg-white rounded-2xl border border-[#f1ded1] shadow-[0_10px_30px_-24px_rgba(53,37,28,0.45)] min-h-0 flex-1 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-[#f1ded1] flex flex-wrap items-center gap-3 flex-shrink-0">
+              <button type="button" onClick={toggleVisible} disabled={!filteredProducts.length} className="inline-flex items-center gap-2 rounded-xl border border-[#f1ded1] bg-[#fffaf6] px-3 py-2 text-sm font-black text-[#5b4638] hover:text-[#ff690c] disabled:opacity-40">
+                {visibleProducts.length > 0 && visibleProducts.every((item) => selected.has(productKey(item))) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                Select visible
+              </button>
               <div className="relative flex-1 min-w-[220px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a99485]" />
                 <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search product, store, vendor..." className="w-full rounded-xl border border-[#f1ded1] bg-[#fffaf6] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#ff690c]" />
@@ -208,23 +294,26 @@ export default function ProductFinderPage() {
                   {products.length ? "No products match the current filters." : "Run Product Finder to load real Shopify catalog data."}
                 </div>
               ) : (
-                <div className="divide-y divide-[#f1ded1] min-w-[720px]">
-                  {filteredProducts.slice(0, 120).map((item, index) => (
-                    <a key={`${item.store}-${item.handle || item.title}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="grid grid-cols-[minmax(0,1.5fr)_110px_90px_90px] gap-3 p-4 hover:bg-[#fffaf6] transition-colors">
-                      <div className="min-w-0 flex items-center gap-3">
+                <div className="divide-y divide-[#f1ded1] min-w-[780px]">
+                  {visibleProducts.map((item, index) => (
+                    <div key={`${item.store}-${item.handle || item.title}-${index}`} className="grid grid-cols-[44px_minmax(0,1.5fr)_110px_90px_90px] gap-3 p-4 hover:bg-[#fffaf6] transition-colors">
+                      <button type="button" onClick={() => toggleProduct(item)} className="self-center text-[#8a7668] hover:text-[#ff690c]" aria-label="Select product">
+                        {selected.has(productKey(item)) ? <CheckSquare className="w-5 h-5 text-[#ff690c]" /> : <Square className="w-5 h-5" />}
+                      </button>
+                      <a href={item.url} target="_blank" rel="noreferrer" className="min-w-0 flex items-center gap-3">
                         {item.image ? <img src={item.image} alt="" className="h-12 w-12 rounded-xl object-cover border border-[#f1ded1] bg-[#fffaf6] flex-shrink-0" /> : <div className="h-12 w-12 rounded-xl border border-[#f1ded1] bg-[#fffaf6] flex-shrink-0" />}
                         <div className="min-w-0">
                           <p className="font-black text-[#24170f] truncate">{item.title || "Untitled product"}</p>
                           <p className="text-xs font-bold text-[#8a7668] truncate">{item.store} · {item.vendor || item.productType || "Shopify"}</p>
                         </div>
-                      </div>
+                      </a>
                       <div className="self-center font-black text-[#24170f] truncate">{formatMoney(productPrice(item))}</div>
                       <div className="self-center text-sm font-black text-[#ff690c]">{item.discountPercent ? `-${item.discountPercent}%` : "—"}</div>
                       <div className="self-center flex items-center justify-between gap-2 text-xs font-black text-[#8a7668]">
                         <span className={item.available === true ? "text-[#ff690c]" : ""}>{item.available === false ? "Out" : item.available === true ? "In" : "—"}</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </div>
-                    </a>
+                    </div>
                   ))}
                 </div>
               )}
