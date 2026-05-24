@@ -1053,7 +1053,7 @@ def image_item(url: str, base_url: str, source: str, alt: str | None = None) -> 
 def extract_product_media(page: Any, base_url: str, primary_image: str | None = None) -> list[dict[str, Any]]:
     media: list[dict[str, Any]] = []
     if primary_image:
-        item = image_item(primary_image, base_url, "primary", "Primary product image")
+        item = image_item(primary_image, base_url, "image", "Product image")
         if item:
             media.append(item)
 
@@ -1145,6 +1145,71 @@ def shopify_price(value: Any) -> float | None:
     if isinstance(value, str) and re.fullmatch(r"\d{4,}", value.strip()):
         return round(price / 100, 2)
     return price
+
+
+def shopify_catalog_json_urls(url: str) -> list[str]:
+    parsed = urlparse(url)
+    if not parsed.netloc:
+        return []
+    root = f"{parsed.scheme or 'https'}://{parsed.netloc}"
+    return [f"{root}/products.json?limit=250"]
+
+
+def shopify_product_url(root_url: str, handle: Any) -> str | None:
+    handle_text = clean_text(handle)
+    return f"{root_url.rstrip('/')}/products/{handle_text}" if handle_text else None
+
+
+def shopify_catalog_image(value: Any, base_url: str) -> str | None:
+    if isinstance(value, str):
+        return prefer_https_url(absolutize_url(value, base_url))
+    if isinstance(value, dict):
+        src = value.get("src") or value.get("url") or value.get("original_src")
+        if src:
+            return prefer_https_url(absolutize_url(str(src), base_url))
+    return None
+
+
+def extract_shopify_product_catalog(url: str) -> list[dict[str, Any]]:
+    root = None
+    parsed_url = urlparse(url)
+    if parsed_url.netloc:
+        root = f"{parsed_url.scheme or 'https'}://{parsed_url.netloc}"
+    if not root:
+        return []
+
+    for endpoint in shopify_catalog_json_urls(url):
+        try:
+            parsed = fetch_json_url(endpoint)
+        except Exception:
+            continue
+        products = parsed.get("products") if isinstance(parsed, dict) else None
+        if not isinstance(products, list):
+            continue
+        catalog: list[dict[str, Any]] = []
+        for product in products[:80]:
+            if not isinstance(product, dict):
+                continue
+            variants = [variant for variant in (product.get("variants") or []) if isinstance(variant, dict)]
+            first_variant = variants[0] if variants else {}
+            images = product.get("images") if isinstance(product.get("images"), list) else []
+            image = shopify_catalog_image(product.get("image") or product.get("featured_image") or (images[0] if images else None), root)
+            catalog.append(compact({
+                "title": clean_text(product.get("title")),
+                "handle": clean_text(product.get("handle")),
+                "url": shopify_product_url(root, product.get("handle")),
+                "image": image,
+                "price": shopify_price(first_variant.get("price") or product.get("price") or product.get("price_min")),
+                "compareAtPrice": shopify_price(first_variant.get("compare_at_price") or product.get("compare_at_price")),
+                "available": first_variant.get("available") if isinstance(first_variant.get("available"), bool) else product.get("available") if isinstance(product.get("available"), bool) else None,
+                "vendor": clean_text(product.get("vendor")),
+                "productType": clean_text(product.get("product_type") or product.get("type")),
+                "variantsCount": len(variants) or None,
+                "source": "shopify-products-json",
+            }))
+        if catalog:
+            return unique(catalog)[:80]
+    return []
 
 
 def extract_shopify_product_json(url: str) -> dict[str, Any]:
@@ -1284,7 +1349,9 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
     profile_data = extract_with_selectors(page, profile, raw, url) if profile else {}
     generic_data = extract_with_selectors(page, GENERIC_SELECTORS, raw, url)
     embedded_data = extract_from_embedded_json(page)
-    shopify_data = extract_shopify_product_json(url) if detect_platform(raw, url) == "Shopify" or "/products/" in urlparse(url).path else {}
+    shopify_enabled = detect_platform(raw, url) == "Shopify" or "/products/" in urlparse(url).path
+    shopify_data = extract_shopify_product_json(url) if shopify_enabled else {}
+    shopify_catalog = extract_shopify_product_catalog(url) if shopify_enabled else []
     if embedded_data.get("image"):
         embedded_data["image"] = absolutize_url(str(embedded_data["image"]), url)
     data = merge_missing(data, adapter_data, profile_data, generic_data, embedded_data, shopify_data)
@@ -1329,6 +1396,8 @@ def extract_product_data(page: Any, url: str, fetcher_used: str) -> dict[str, An
     reviews = enrich_reviews_from_counts(reviews, data.get("rating"), data.get("reviewsCount"))
     if reviews:
         data["productReviews"] = data.get("productReviews") or reviews
+    if shopify_catalog:
+        data["productCatalog"] = shopify_catalog
 
     data["brandSignals"] = extract_brand_signals(page, url, fetcher_used, raw)
     if adapter_info.get("platform") and not data["brandSignals"].get("platform"):

@@ -12,6 +12,21 @@ type ProductMedia = {
   type?: string;
 };
 
+type ProductCatalogItem = {
+  title?: string;
+  handle?: string;
+  url?: string;
+  image?: string;
+  price?: number | null;
+  compareAtPrice?: number | null;
+  currency?: string | null;
+  available?: boolean | null;
+  vendor?: string | null;
+  productType?: string | null;
+  variantsCount?: number | null;
+  source?: string;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -53,6 +68,36 @@ function mergeMedia(...groups: Array<ProductMedia[] | undefined | null>) {
     }
   }
   return merged.slice(0, 30);
+}
+
+function shopifyRoot(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function shopifyCatalogEndpoints(url: string) {
+  const root = shopifyRoot(url);
+  return root ? [`${root}/products.json?limit=250`] : [];
+}
+
+function numberFromValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(String(value).replace(/,/g, "."));
+  return Number.isFinite(number) ? number : null;
+}
+
+function shopifyProductUrl(root: string, handle: unknown) {
+  return typeof handle === "string" && handle ? `${root}/products/${handle}` : undefined;
+}
+
+function shopifyImageUrl(value: unknown, baseUrl: string) {
+  if (typeof value === "string") return absoluteImageUrl(value, baseUrl);
+  if (!isRecord(value)) return undefined;
+  return absoluteImageUrl(String(value.src || value.url || value.original_src || ""), baseUrl);
 }
 
 function shopifyProductEndpoints(url: string) {
@@ -124,6 +169,53 @@ async function fetchShopifyProductMedia(url: string) {
   return [] as ProductMedia[];
 }
 
+async function fetchShopifyProductCatalog(url: string) {
+  const root = shopifyRoot(url);
+  if (!root) return [] as ProductCatalogItem[];
+
+  for (const endpoint of shopifyCatalogEndpoints(url)) {
+    try {
+      const res = await fetch(endpoint, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 PriceAndSee Product Catalog",
+          Accept: "application/json,text/plain,*/*;q=0.8",
+        },
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) continue;
+      const parsed = await res.json().catch(() => null);
+      const products = isRecord(parsed) && Array.isArray(parsed.products) ? parsed.products : [];
+      const catalog: ProductCatalogItem[] = [];
+      for (const item of products.slice(0, 80)) {
+        if (!isRecord(item)) continue;
+        const variants = Array.isArray(item.variants) ? item.variants.filter(isRecord) : [];
+        const firstVariant = variants[0];
+        const images = Array.isArray(item.images) ? item.images : [];
+        const image = shopifyImageUrl(item.image || item.featured_image || images[0], root);
+        catalog.push({
+          title: cleanText(item.title),
+          handle: cleanText(item.handle),
+          url: shopifyProductUrl(root, item.handle),
+          image,
+          price: numberFromValue(firstVariant?.price ?? item.price ?? item.price_min),
+          compareAtPrice: numberFromValue(firstVariant?.compare_at_price ?? item.compare_at_price),
+          currency: cleanText(firstVariant?.currency || item.currency),
+          available: typeof firstVariant?.available === "boolean" ? firstVariant.available : typeof item.available === "boolean" ? item.available : null,
+          vendor: cleanText(item.vendor),
+          productType: cleanText(item.product_type || item.type),
+          variantsCount: variants.length || null,
+          source: "shopify-products-json",
+        });
+      }
+      if (catalog.length) return catalog;
+    } catch {
+      // Ignore Shopify catalog failures; individual product media still works.
+    }
+  }
+  return [] as ProductCatalogItem[];
+}
+
 function savedProductMedia(product: { productMedia?: unknown; image?: string | null; title?: string | null; url: string }) {
   const items: ProductMedia[] = [];
   if (Array.isArray(product.productMedia)) {
@@ -141,7 +233,7 @@ function savedProductMedia(product: { productMedia?: unknown; image?: string | n
   }
   if (product.image) {
     const url = absoluteImageUrl(product.image, product.url);
-    if (url) items.push({ url, alt: product.title || "Product image", source: "primary", type: "image" });
+    if (url) items.push({ url, alt: product.title || "Product image", source: "image", type: "image" });
   }
   return mergeMedia(items);
 }
@@ -168,10 +260,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const savedMedia = savedProductMedia(product);
   const shopifyMedia = shopifyProductEndpoints(product.url).length ? await fetchShopifyProductMedia(product.url) : [];
+  const productCatalog = shopifyCatalogEndpoints(product.url).length ? await fetchShopifyProductCatalog(product.url) : [];
   const brandMetrics = await fetchFreshBrandMetrics(product.url, product.brandMetrics);
   const productMedia = mergeMedia(shopifyMedia, savedMedia);
   const image = productMedia[0]?.url || product.image;
-  const responseProduct = { ...product, image, productMedia, brandMetrics };
+  const responseProduct = { ...product, image, productMedia, productCatalog, brandMetrics };
 
   const shouldPersistMedia = productMedia.length && (JSON.stringify(savedMedia) !== JSON.stringify(productMedia) || image !== product.image);
   const shouldPersistBrandMetrics = JSON.stringify(brandMetrics || null) !== JSON.stringify(product.brandMetrics || null);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Globe2, Users, DollarSign, Activity as ActivityIcon, Copy, Check, Download, Images, MessageSquareText, FileDown } from "lucide-react";
+import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Globe2, Users, DollarSign, Activity as ActivityIcon, Download, Images, FileDown } from "lucide-react";
 import VisitHistoryChart, { type TrafficCountry } from "./VisitHistoryChart";
 import CompetitorRevenueChart, { type CompetitorRevenueSeries } from "./CompetitorRevenueChart";
 
@@ -71,6 +71,21 @@ type ProductReview = {
   count?: number;
 };
 
+type ProductCatalogItem = {
+  title?: string;
+  handle?: string;
+  url?: string;
+  image?: string;
+  price?: number | null;
+  compareAtPrice?: number | null;
+  currency?: string | null;
+  available?: boolean | null;
+  vendor?: string | null;
+  productType?: string | null;
+  variantsCount?: number | null;
+  source?: string;
+};
+
 type ScrapingJob = {
   id: string;
   createdAt: string;
@@ -95,6 +110,7 @@ type ProductDetails = {
   reviewsCount?: number | null;
   productMedia?: ProductMedia[] | null;
   productReviews?: ProductReview[] | null;
+  productCatalog?: ProductCatalogItem[] | null;
   scrapingJobs?: ScrapingJob[];
   lastCheckedAt?: string | null;
   error?: string;
@@ -375,16 +391,20 @@ function previewAssetUrl(url: string, name: string) {
   return assetProxyUrl(url, name, true);
 }
 
-function reviewsToCsv(reviews: ProductReview[]) {
-  const rows = [["rating", "author", "title", "body", "date", "source", "count"]];
-  reviews.forEach((review) => rows.push([
-    review.rating?.toString() || "",
-    review.author || "",
-    review.title || "",
-    review.body || "",
-    review.date || "",
-    review.source || "",
-    review.count?.toString() || "",
+function productCatalogToCsv(products: ProductCatalogItem[]) {
+  const rows = [["title", "price", "compare_at_price", "currency", "available", "vendor", "type", "variants", "url", "image", "source"]];
+  products.forEach((item) => rows.push([
+    item.title || "",
+    item.price?.toString() || "",
+    item.compareAtPrice?.toString() || "",
+    item.currency || "",
+    item.available === null || item.available === undefined ? "" : item.available ? "true" : "false",
+    item.vendor || "",
+    item.productType || "",
+    item.variantsCount?.toString() || "",
+    item.url || "",
+    item.image || "",
+    item.source || "",
   ]));
   return rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
 }
@@ -401,6 +421,24 @@ function downloadTextFile(filename: string, content: string, type = "text/plain"
   URL.revokeObjectURL(url);
 }
 
+async function downloadAllAssets(media: ProductMedia[], title?: string | null) {
+  const safeTitle = (title || "product").replace(/[^a-z0-9._-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 42) || "product";
+  for (const [index, item] of media.entries()) {
+    const anchor = document.createElement("a");
+    anchor.href = downloadAssetUrl(item.url, `${safeTitle}-${String(index + 1).padStart(2, "0")}`);
+    anchor.download = "";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    await new Promise((resolve) => window.setTimeout(resolve, 160));
+  }
+}
+
+function sourceLabel(value?: string) {
+  if (!value || value === "primary") return "image";
+  return value.replace(/^shopify-/, "shopify ").replace(/-/g, " ");
+}
+
 function absoluteAssetUrl(value: string, baseUrl: string) {
   if (value.startsWith("//")) return `https:${value}`;
   try {
@@ -415,7 +453,7 @@ function absoluteAssetUrl(value: string, baseUrl: string) {
 }
 
 function productMediaItems(product: ProductDetails): ProductMedia[] {
-  const raw = product.productMedia?.length ? product.productMedia : product.image ? [{ url: product.image, alt: product.title || "Product image", source: "primary", type: "image" }] : [];
+  const raw = product.productMedia?.length ? product.productMedia : product.image ? [{ url: product.image, alt: product.title || "Product image", source: "image", type: "image" }] : [];
   const seen = new Set<string>();
   return raw
     .map((item) => ({ ...item, url: absoluteAssetUrl(item.url, product.url) }))
@@ -454,33 +492,31 @@ function ProductPhotoCard({ product, onOpenAssets }: { product: ProductDetails; 
 }
 
 function ProductAssetsPanel({ product }: { product: ProductDetails }) {
-  const [copiedReviews, setCopiedReviews] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const media = productMediaItems(product);
   const focusedMedia = media[Math.min(focusedIndex, Math.max(media.length - 1, 0))];
   const visibleMedia = media.slice(0, 12);
   const hiddenMediaCount = Math.max(0, media.length - visibleMedia.length);
-  const reviews = product.productReviews || [];
-  const reviewsCsv = reviewsToCsv(reviews);
+  const catalog = product.productCatalog || [];
+  const catalogCsv = productCatalogToCsv(catalog);
   const hasMedia = media.length > 0;
-  const hasReviews = reviews.length > 0;
-
-  const copyReviews = async () => {
-    await navigator.clipboard.writeText(reviewsCsv);
-    setCopiedReviews(true);
-    window.setTimeout(() => setCopiedReviews(false), 1400);
-  };
+  const hasCatalog = catalog.length > 0;
 
   return (
-    <div className={`grid grid-cols-1 ${hasMedia && hasReviews ? "lg:grid-cols-5" : ""} gap-4 sm:gap-5 h-full overflow-hidden`}>
+    <div className={`grid grid-cols-1 ${hasMedia && hasCatalog ? "lg:grid-cols-5" : ""} gap-4 sm:gap-5 h-full overflow-hidden`}>
       {hasMedia && (
-        <div className={`${hasReviews ? "lg:col-span-3" : ""} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
+        <div className={`${hasCatalog ? "lg:col-span-3" : ""} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
           <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
             <div>
               <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Images className="w-4 h-4 text-[#ff690c]" />Product images</h3>
               <p className="text-sm text-[#8a7668] mt-2">Download scraped product media. No generated assets.</p>
             </div>
-            <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{media.length} files</span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button type="button" onClick={() => downloadAllAssets(media, product.title)} className="inline-flex items-center gap-1.5 rounded-full border border-[#f1ded1] bg-[#fffaf6] px-3 py-1.5 text-xs font-black text-[#24170f] hover:text-[#ff690c] transition-colors">
+                <Download className="w-3.5 h-3.5" />Download all
+              </button>
+              <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{media.length} files</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-3 flex-1 min-h-0 overflow-hidden">
@@ -494,7 +530,7 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
               <div className="mt-3 flex items-center justify-between gap-3 flex-shrink-0">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black text-[#24170f]">{focusedMedia?.alt || product.title || "Product image"}</p>
-                  <p className="truncate text-xs font-bold text-[#8a7668]">{focusedMedia?.source || focusedMedia?.type || "image"}</p>
+                  <p className="truncate text-xs font-bold text-[#8a7668]">{sourceLabel(focusedMedia?.source || focusedMedia?.type)}</p>
                 </div>
                 {focusedMedia && (
                   <a href={downloadAssetUrl(focusedMedia.url, `${product.title || "product"}-selected`)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#24170f] px-3 py-2 text-xs font-black text-[#fffaf6] hover:bg-[#3a281d]">
@@ -508,14 +544,11 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
               {visibleMedia.map((item, index) => {
                 const active = index === Math.min(focusedIndex, media.length - 1);
                 return (
-                  <button key={`${item.url}-${index}`} type="button" onClick={() => setFocusedIndex(index)} className={`rounded-xl border p-1.5 overflow-hidden text-left transition-all ${active ? "border-[#ff690c] bg-white shadow-[0_0_0_2px_rgba(255,105,12,0.12)]" : "border-[#f1ded1] bg-[#fffaf6] hover:border-[#ff690c]/70"}`}>
+                  <button key={`${item.url}-${index}`} type="button" onClick={() => setFocusedIndex(index)} aria-label={`Preview product image ${index + 1}`} className={`rounded-xl border p-1.5 overflow-hidden text-left transition-all ${active ? "border-[#ff690c] bg-white shadow-[0_0_0_2px_rgba(255,105,12,0.12)]" : "border-[#f1ded1] bg-[#fffaf6] hover:border-[#ff690c]/70"}`}>
                     <div className="aspect-square rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
                       <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} alt={item.alt || `Product media ${index + 1}`} className="h-full w-full object-cover" />
                     </div>
-                    <div className="mt-1 flex items-center justify-between gap-1">
-                      <p className="min-w-0 truncate text-[10px] font-bold text-[#8a7668]">{item.source || item.type || "image"}</p>
-                      <span className="text-[10px] font-black text-[#ff690c]">Focus</span>
-                    </div>
+                    <p className="mt-1 min-w-0 truncate text-[10px] font-bold text-[#8a7668]">{sourceLabel(item.source || item.type)}</p>
                   </button>
                 );
               })}
@@ -527,36 +560,41 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
         </div>
       )}
 
-      {hasReviews && (
+      {hasCatalog && (
         <div className={`${hasMedia ? "lg:col-span-2" : ""} bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col`.trim()}>
           <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
             <div>
-              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><MessageSquareText className="w-4 h-4 text-[#ff690c]" />Reviews export</h3>
-              <p className="text-sm text-[#8a7668] mt-2">Export scraped review snippets / aggregate rating.</p>
+              <h3 className="text-sm font-bold text-[#24170f] uppercase tracking-wider flex items-center gap-2"><Package className="w-4 h-4 text-[#ff690c]" />Products table</h3>
+              <p className="text-sm text-[#8a7668] mt-2">Real Shopify catalog from /products.json.</p>
             </div>
-            <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{reviews.length}</span>
+            <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{catalog.length}</span>
           </div>
 
           <div className="flex gap-2 flex-shrink-0 mb-4">
-            <button onClick={copyReviews} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#24170f] text-[#fffaf6] text-xs font-black hover:bg-[#3a281d] transition-colors">
-              {copiedReviews ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}{copiedReviews ? "Copied" : "Copy CSV"}
-            </button>
-            <button onClick={() => downloadTextFile(`${product.title || "product"}-reviews.csv`, reviewsCsv, "text/csv")} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#f1ded1] bg-[#fffaf6] text-[#24170f] text-xs font-black hover:text-[#ff690c] transition-colors">
-              <FileDown className="w-3.5 h-3.5" />Export
+            <button onClick={() => downloadTextFile(`${product.title || "shopify"}-products.csv`, catalogCsv, "text/csv")} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#f1ded1] bg-[#fffaf6] text-[#24170f] text-xs font-black hover:text-[#ff690c] transition-colors">
+              <FileDown className="w-3.5 h-3.5" />Export CSV
             </button>
           </div>
 
-          <div className="flex-1 min-h-0 space-y-3 overflow-hidden">
-            {reviews.slice(0, 6).map((review, index) => (
-              <div key={index} className="rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-black text-sm text-[#24170f] truncate">{review.title || review.author || `Review ${index + 1}`}</p>
-                  <span className="text-xs font-black text-[#ff690c] whitespace-nowrap">{review.rating ? `${review.rating}/5` : review.count ? `${review.count} total` : "—"}</span>
-                </div>
-                {review.body && <p className="mt-2 text-xs text-[#5b4638] line-clamp-3">{review.body}</p>}
-                <p className="mt-2 text-[11px] font-semibold text-[#a99485] truncate">{review.date || review.source || "scraped"}</p>
-              </div>
-            ))}
+          <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[#f1ded1] bg-[#fffaf6]">
+            <div className="grid grid-cols-[minmax(0,1fr)_86px_64px] gap-2 border-b border-[#f1ded1] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-[#a99485]">
+              <span>Product</span><span>Price</span><span>Stock</span>
+            </div>
+            <div className="divide-y divide-[#f1ded1]">
+              {catalog.slice(0, 8).map((item, index) => (
+                <a key={`${item.url || item.handle || item.title}-${index}`} href={item.url || undefined} target="_blank" rel="noreferrer" className="grid grid-cols-[minmax(0,1fr)_86px_64px] gap-2 px-3 py-2 hover:bg-white transition-colors">
+                  <span className="min-w-0 flex items-center gap-2">
+                    {item.image ? <img src={previewAssetUrl(item.image, `${item.title || "catalog"}-${index}`)} alt="" className="h-8 w-8 rounded-lg object-cover border border-[#f1ded1] bg-white flex-shrink-0" /> : <span className="h-8 w-8 rounded-lg border border-[#f1ded1] bg-white flex-shrink-0" />}
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-black text-[#24170f]">{item.title || "Untitled product"}</span>
+                      <span className="block truncate text-[10px] font-bold text-[#8a7668]">{item.vendor || item.productType || item.handle || "Shopify"}</span>
+                    </span>
+                  </span>
+                  <span className="self-center text-xs font-black text-[#24170f] truncate">{item.price !== null && item.price !== undefined ? formatMoney(item.price, item.currency || product.currency || "USD") : "—"}</span>
+                  <span className={`self-center text-[10px] font-black ${item.available === false ? "text-[#8a7668]" : "text-[#ff690c]"}`}>{item.available === false ? "Out" : item.available === true ? "In" : "—"}</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       )}

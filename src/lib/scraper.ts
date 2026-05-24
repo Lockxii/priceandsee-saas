@@ -46,6 +46,21 @@ type ProductReview = {
   count?: number;
 };
 
+type ProductCatalogItem = {
+  title?: string;
+  handle?: string;
+  url?: string;
+  image?: string;
+  price?: number | null;
+  compareAtPrice?: number | null;
+  currency?: string | null;
+  available?: boolean | null;
+  vendor?: string | null;
+  productType?: string | null;
+  variantsCount?: number | null;
+  source?: string;
+};
+
 type BundlePrice = {
   name: string;
   price: number;
@@ -87,6 +102,7 @@ type ExtractedProduct = {
   currency?: string;
   productMedia?: ProductMedia[];
   productReviews?: ProductReview[];
+  productCatalog?: ProductCatalogItem[];
   bundlePrices?: BundlePrice[];
   bundleWidget?: BundleWidget;
   brandSignals?: JsonRecord;
@@ -343,7 +359,7 @@ function asBundlePrices(value: unknown): BundlePrice[] | undefined {
 
 function asProductMedia(value: unknown, primaryImage?: string): ProductMedia[] | undefined {
   const items: ProductMedia[] = [];
-  if (primaryImage) items.push({ url: primaryImage, alt: "Primary product image", source: "primary", type: "image" });
+  if (primaryImage) items.push({ url: primaryImage, alt: "Product image", source: "image", type: "image" });
   if (Array.isArray(value)) {
     value.forEach((item) => {
       if (typeof item === "string") {
@@ -391,6 +407,34 @@ function asProductReviews(value: unknown): ProductReview[] | undefined {
     })
     .filter((item): item is ProductReview => item !== null);
   return reviews.length ? reviews.slice(0, 30) : undefined;
+}
+
+function asProductCatalog(value: unknown): ProductCatalogItem[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const products = value
+    .map((item): ProductCatalogItem | null => {
+      if (!isRecord(item)) return null;
+      const title = asString(item.title) || asString(item.name);
+      const url = asString(item.url);
+      const image = asString(item.image);
+      if (!title && !url) return null;
+      return {
+        title,
+        handle: asString(item.handle),
+        url,
+        image,
+        price: item.price !== undefined && item.price !== null && Number.isFinite(Number(item.price)) ? Number(item.price) : null,
+        compareAtPrice: item.compareAtPrice !== undefined && item.compareAtPrice !== null && Number.isFinite(Number(item.compareAtPrice)) ? Number(item.compareAtPrice) : null,
+        currency: asString(item.currency),
+        available: typeof item.available === "boolean" ? item.available : null,
+        vendor: asString(item.vendor),
+        productType: asString(item.productType) || asString(item.product_type),
+        variantsCount: item.variantsCount !== undefined && Number.isFinite(Number(item.variantsCount)) ? Number(item.variantsCount) : null,
+        source: asString(item.source),
+      };
+    })
+    .filter((item): item is ProductCatalogItem => item !== null);
+  return products.length ? products.slice(0, 80) : undefined;
 }
 
 function asBundleWidget(value: unknown): BundleWidget | undefined {
@@ -447,6 +491,7 @@ function normalizeScraperData(data: JsonRecord): ExtractedProduct {
     currency: asString(data.currency),
     productMedia: asProductMedia(data.productMedia || data.product_media || data.media || data.images, asString(data.image)),
     productReviews: asProductReviews(data.productReviews || data.product_reviews || data.reviews),
+    productCatalog: asProductCatalog(data.productCatalog || data.product_catalog || data.products),
     bundlePrices: asBundlePrices(data.bundlePrices || data.bundle_prices),
     bundleWidget: asBundleWidget(data.bundleWidget || data.bundle_widget),
     brandSignals: typeof data.brandSignals === "object" && data.brandSignals ? data.brandSignals as JsonRecord : (typeof data.brand_signals === "object" && data.brand_signals ? data.brand_signals as JsonRecord : undefined),
