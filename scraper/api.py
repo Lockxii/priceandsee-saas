@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,6 +24,7 @@ def scraper_module() -> tuple[Any | None, str | None]:
 
 def clear_scraper_import_cache() -> None:
     scraper_module.cache_clear()
+
 
 
 class ScrapeRequest(BaseModel):
@@ -57,7 +58,17 @@ def root():
 
 
 @app.get("/health")
-def health():
+def health(deep: bool = Query(default=False)):
+    if not deep:
+        return {
+            "status": "ok",
+            "mode": "shallow",
+            "deepCheck": "/health?deep=true",
+            "externalProviders": os.getenv("SCRAPER_EXTERNAL_PROVIDERS", "firecrawl,scrapegraph"),
+            "firecrawlConfigured": bool(os.getenv("FIRECRAWL_API_KEY")),
+            "scrapeGraphConfigured": bool(os.getenv("SGAI_API_KEY") or os.getenv("SCRAPEGRAPH_API_KEY")),
+        }
+
     module, import_error = scraper_module()
     providers = {}
     if module is not None:
@@ -68,6 +79,7 @@ def health():
             providers = {"statusError": f"{type(exc).__name__}: {exc}"}
     return {
         "status": "ok",
+        "mode": "deep",
         "scraperImport": "ok" if module is not None else "degraded",
         "scraperImportError": import_error,
         "providers": providers,
