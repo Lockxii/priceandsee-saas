@@ -618,138 +618,6 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   );
 }
 
-function catalogItemPrice(item: ProductCatalogItem) {
-  return item.price ?? item.minPrice ?? item.maxPrice ?? null;
-}
-
-function catalogDiscountPercent(item: ProductCatalogItem) {
-  const price = catalogItemPrice(item);
-  const compare = item.compareAtPrice;
-  if (price === null || price === undefined || !compare || compare <= price) return null;
-  return Math.round(((compare - price) / compare) * 100);
-}
-
-function catalogStats(products: ProductCatalogItem[]) {
-  const prices = products.map(catalogItemPrice).filter((value): value is number => value !== null && value !== undefined && Number.isFinite(value));
-  const sorted = [...prices].sort((a, b) => a - b);
-  const discounted = products.filter((item) => catalogDiscountPercent(item) !== null);
-  const inStock = products.filter((item) => item.available === true).length;
-  const outOfStock = products.filter((item) => item.available === false).length;
-  const variantProducts = products.filter((item) => (item.variantsCount || 0) > 1).length;
-  const types = Array.from(new Set(products.map((item) => item.productType).filter(Boolean))).length;
-  return {
-    total: products.length,
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
-    median: sorted.length ? sorted[Math.floor(sorted.length / 2)] : undefined,
-    discounted,
-    inStock,
-    outOfStock,
-    variantProducts,
-    types,
-  };
-}
-
-function CatalogIntelligencePanel({ product }: { product: ProductDetails }) {
-  const catalog = product.productCatalog || [];
-  const stats = catalogStats(catalog);
-  const currency = catalog.find((item) => item.currency)?.currency || product.currency || "USD";
-  const topDiscounts = [...stats.discounted]
-    .sort((a, b) => (catalogDiscountPercent(b) || 0) - (catalogDiscountPercent(a) || 0))
-    .slice(0, 5);
-  const newest = [...catalog]
-    .filter((item) => item.publishedAt || item.createdAt)
-    .sort((a, b) => new Date(b.publishedAt || b.createdAt || 0).getTime() - new Date(a.publishedAt || a.createdAt || 0).getTime())
-    .slice(0, 4);
-  const priceBuckets = [
-    { label: "Low", count: catalog.filter((item) => catalogItemPrice(item) !== null && stats.median !== undefined && (catalogItemPrice(item) || 0) < stats.median).length },
-    { label: "Median+", count: catalog.filter((item) => catalogItemPrice(item) !== null && stats.median !== undefined && (catalogItemPrice(item) || 0) >= stats.median).length },
-    { label: "No price", count: catalog.filter((item) => catalogItemPrice(item) === null).length },
-  ].filter((bucket) => bucket.count > 0);
-
-  if (!catalog.length) {
-    return (
-      <div className="h-full rounded-2xl border border-[#f1ded1] bg-white p-5 shadow-sm flex flex-col">
-        <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><Package className="w-4 h-4 text-[#ff690c]" />Catalog intelligence</h3>
-        <div className="mt-5 rounded-2xl border border-dashed border-[#f1ded1] bg-[#fffaf6] p-5 text-sm text-[#8a7668]">No Shopify /products.json catalog returned for this site.</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-5 h-full overflow-hidden">
-      <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
-        <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
-          <div>
-            <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><Package className="w-4 h-4 text-[#ff690c]" />Catalog intelligence</h3>
-            <p className="text-sm text-[#8a7668] mt-2">Real Shopify catalog signals from /products.json.</p>
-          </div>
-          <span className="text-xs font-black text-[#ff690c] bg-[#fffaf6] border border-[#f1ded1] rounded-full px-3 py-1">{stats.total} products</span>
-        </div>
-
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 flex-shrink-0">
-          <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4"><p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Price range</p><p className="mt-2 text-xl font-black text-[#24170f] truncate">{formatMoneyRange(stats.min, stats.max, currency)}</p></div>
-          <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4"><p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Median</p><p className="mt-2 text-xl font-black text-[#24170f] truncate">{formatMoney(stats.median, currency)}</p></div>
-          <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4"><p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">Discounted</p><p className="mt-2 text-xl font-black text-[#24170f] truncate">{stats.discounted.length}</p></div>
-          <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4"><p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485]">In stock</p><p className="mt-2 text-xl font-black text-[#24170f] truncate">{stats.inStock || "—"}</p></div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4 flex-1 min-h-0 overflow-hidden">
-          <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
-            <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Price distribution</p>
-            <div className="space-y-3">
-              {priceBuckets.map((bucket) => (
-                <div key={bucket.label}>
-                  <div className="flex justify-between text-xs font-bold text-[#5b4638]"><span>{bucket.label}</span><span>{bucket.count}</span></div>
-                  <div className="mt-1 h-2 rounded-full bg-white border border-[#f1ded1] overflow-hidden"><div className="h-full bg-[#ff690c]" style={{ width: `${Math.max(8, (bucket.count / stats.total) * 100)}%` }} /></div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4 overflow-hidden">
-            <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Catalog mix</p>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-[#f1ded1] bg-white p-3"><p className="text-[10px] font-black text-[#a99485] uppercase">Out</p><p className="text-lg font-black text-[#24170f]">{stats.outOfStock || "—"}</p></div>
-              <div className="rounded-xl border border-[#f1ded1] bg-white p-3"><p className="text-[10px] font-black text-[#a99485] uppercase">Variants</p><p className="text-lg font-black text-[#24170f]">{stats.variantProducts || "—"}</p></div>
-              <div className="rounded-xl border border-[#f1ded1] bg-white p-3"><p className="text-[10px] font-black text-[#a99485] uppercase">Types</p><p className="text-lg font-black text-[#24170f]">{stats.types || "—"}</p></div>
-              <div className="rounded-xl border border-[#f1ded1] bg-white p-3"><p className="text-[10px] font-black text-[#a99485] uppercase">Sources</p><p className="text-lg font-black text-[#24170f]">Shopify</p></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-[#f1ded1] shadow-sm h-full overflow-hidden flex flex-col">
-        <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
-          <div>
-            <h3 className="text-sm font-black text-[#24170f] uppercase tracking-[0.12em] flex items-center gap-2"><Tag className="w-4 h-4 text-[#ff690c]" />Offer scanner</h3>
-            <p className="text-sm text-[#8a7668] mt-2">Discounts detected from real compare-at prices.</p>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0 overflow-hidden space-y-3">
-          {topDiscounts.length ? topDiscounts.map((item, index) => {
-            const discount = catalogDiscountPercent(item);
-            return (
-              <a key={`${item.url || item.title}-${index}`} href={item.url || undefined} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 hover:bg-white transition-colors">
-                <span className="min-w-0 flex items-center gap-2">
-                  {item.image ? <img src={previewAssetUrl(item.image, `${item.title || "discount"}-${index}`)} alt="" className="h-10 w-10 rounded-lg object-cover border border-[#f1ded1] bg-white flex-shrink-0" /> : null}
-                  <span className="min-w-0"><span className="block truncate text-xs font-black text-[#24170f]">{item.title || "Untitled product"}</span><span className="block text-[10px] font-bold text-[#8a7668]">{formatMoney(catalogItemPrice(item), currency)} vs {formatMoney(item.compareAtPrice, currency)}</span></span>
-                </span>
-                <span className="text-sm font-black text-[#ff690c] whitespace-nowrap">-{discount}%</span>
-              </a>
-            );
-          }) : <p className="rounded-xl border border-dashed border-[#f1ded1] bg-[#fffaf6] p-4 text-sm text-[#8a7668]">No compare-at discounts detected.</p>}
-        </div>
-        {newest.length > 0 && (
-          <div className="mt-4 flex-shrink-0 rounded-2xl border border-[#f1ded1] bg-[#fffaf6] p-4">
-            <p className="text-[10px] uppercase tracking-[0.14em] font-black text-[#a99485] mb-3">Newest published</p>
-            <div className="space-y-2">{newest.map((item, index) => <p key={`${item.title}-${index}`} className="text-xs font-bold text-[#5b4638] truncate">{item.title}</p>)}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function TrafficSnapshotPanel({ visits, revenue, revenueRange, countries, currency, metrics }: { visits?: number; revenue?: number; revenueRange: { min?: number; max?: number }; countries: TrafficCountry[]; currency: string; metrics?: BrandMetrics | null }) {
   const rank = metrics ? readNumberFromKeys(metrics, ["rank"]) : undefined;
   const bounceRate = metrics ? readNumberFromKeys(metrics, ["bounce_rate", "bounceRate"]) : undefined;
@@ -941,13 +809,11 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
   const hasOverviewDescription = Boolean(product?.description?.trim());
   const hasProductInfo = Boolean(product?.brand || product?.sku || product?.rating || product?.reviewsCount);
   const hasTrafficData = Boolean(derived && (derived.visitHistory || derived.visits !== undefined || derived.revenue !== undefined || derived.revenueRange.min !== undefined || derived.revenueRange.max !== undefined || derived.visitCountries.length > 0));
-  const hasCatalogData = Boolean(product?.productCatalog?.length);
   const availableTabs = useMemo(() => [
     "Overview",
     "Assets",
-    ...(hasCatalogData ? ["Catalog"] : []),
     ...(hasMarketData ? ["Market"] : []),
-  ], [hasCatalogData, hasMarketData]);
+  ], [hasMarketData]);
 
   useEffect(() => {
     if (!availableTabs.includes(activeTab)) setActiveTab("Overview");
@@ -1101,10 +967,6 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
 
                 {activeTab === "Assets" && (
                   <ProductAssetsPanel product={product} />
-                )}
-
-                {activeTab === "Catalog" && (
-                  <CatalogIntelligencePanel product={product} />
                 )}
 
                 {activeTab === "Market" && (
