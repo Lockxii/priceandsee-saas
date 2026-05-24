@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, ExternalLink, RefreshCw, Radar } from "lucide-react";
 import { ProductDetailsModal } from "./[id]/ProductDetailsModal";
 import {
@@ -42,10 +42,7 @@ export default function ProductsPage() {
   const [scrapingId, setScrapingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return new URLSearchParams(window.location.search).get("product");
-  });
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
 
   async function fetchProducts() {
@@ -62,6 +59,29 @@ export default function ProductsPage() {
       void fetchProducts();
     }, 0);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const syncProductFromUrl = () => {
+      setSelectedProductId(new URLSearchParams(window.location.search).get("product"));
+    };
+    syncProductFromUrl();
+    window.addEventListener("popstate", syncProductFromUrl);
+    return () => window.removeEventListener("popstate", syncProductFromUrl);
+  }, []);
+
+  const openProductModal = useCallback((id: string) => {
+    setSelectedProductId(id);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("product", id);
+    window.history.replaceState(null, "", nextUrl.toString());
+  }, []);
+
+  const closeProductModal = useCallback(() => {
+    setSelectedProductId(null);
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete("product");
+    window.history.replaceState(null, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
   }, []);
 
   const atUrlLimit = usage ? usage.productsCount >= usage.maxUrls : false;
@@ -250,7 +270,7 @@ export default function ProductsPage() {
                     {scrapingId === p.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Radar className="w-4 h-4" />}
                     Check
                   </PrimaryButton>
-                  <SecondaryButton onClick={() => setSelectedProductId(p.id)} className="text-sm">
+                  <SecondaryButton onClick={() => openProductModal(p.id)} className="text-sm">
                     Détails
                   </SecondaryButton>
                 </div>
@@ -261,7 +281,7 @@ export default function ProductsPage() {
       </DashboardCard>
 
       {selectedProductId ? (
-        <ProductDetailsModal productId={selectedProductId} onClose={() => setSelectedProductId(null)} />
+        <ProductDetailsModal productId={selectedProductId} onClose={closeProductModal} />
       ) : null}
     </div>
   );

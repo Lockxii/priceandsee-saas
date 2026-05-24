@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink, Package, Tag, Hash, Star, AlignLeft, BarChart3, Globe2, Users, DollarSign, Activity as ActivityIcon, Download, Images, FileDown } from "lucide-react";
 import VisitHistoryChart, { type TrafficCountry } from "./VisitHistoryChart";
 import CompetitorRevenueChart, { type CompetitorRevenueSeries } from "./CompetitorRevenueChart";
@@ -765,6 +766,11 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
   const [product, setProduct] = useState<ProductDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Overview");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     fetch(`/api/products/${productId}`)
@@ -819,8 +825,10 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
     if (!availableTabs.includes(activeTab)) setActiveTab("Overview");
   }, [activeTab, availableTabs]);
 
-  return (
-    <div className="fixed inset-0 z-[90] flex flex-col items-center justify-end">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-end">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200" onClick={onClose} />
 
       <div 
@@ -1017,6 +1025,7 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
