@@ -472,7 +472,22 @@ function productMediaItems(product: ProductDetails): ProductMedia[] {
 }
 
 function ProductPhotoCard({ product, onOpenAssets }: { product: ProductDetails; onOpenAssets?: () => void }) {
-  const media = productMediaItems(product);
+  const [brokenUrls, setBrokenUrls] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    setBrokenUrls(new Set());
+  }, [product.url]);
+
+  const markBroken = (url?: string) => {
+    if (!url) return;
+    setBrokenUrls((current) => {
+      if (current.has(url)) return current;
+      const next = new Set(current);
+      next.add(url);
+      return next;
+    });
+  };
+  const media = productMediaItems(product).filter((item) => !brokenUrls.has(item.url));
   const visibleThumbs = media.slice(0, 4);
   const extraCount = Math.max(0, media.length - visibleThumbs.length);
   return (
@@ -484,11 +499,11 @@ function ProductPhotoCard({ product, onOpenAssets }: { product: ProductDetails; 
       <button type="button" onClick={onOpenAssets} className="flex-1 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] overflow-hidden grid grid-cols-4 gap-2 p-2 text-left disabled:cursor-default" disabled={!media.length}>
         {visibleThumbs.length ? visibleThumbs.map((item, index) => (
           <div key={`${item.url}-${index}`} className="relative rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
-            <img src={previewAssetUrl(item.url, `${product.title || "product"}-overview-${index + 1}`)} alt={item.alt || product.title || `Product ${index + 1}`} className="h-full w-full object-cover" />
+            <img src={previewAssetUrl(item.url, `${product.title || "product"}-overview-${index + 1}`)} alt={item.alt || product.title || `Product ${index + 1}`} onError={() => markBroken(item.url)} className="h-full w-full object-cover" />
             {index === visibleThumbs.length - 1 && extraCount > 0 && <span className="absolute inset-0 bg-[#24170f]/55 text-white text-xs font-black flex items-center justify-center">+{extraCount}</span>}
           </div>
         )) : (
-          <div className="text-center text-[#8a7668]">
+          <div className="col-span-4 text-center text-[#8a7668] self-center">
             <Package className="w-9 h-9 mx-auto mb-2 text-[#ff690c] opacity-60" />
             <p className="text-sm font-bold text-[#24170f]">No product image</p>
           </div>
@@ -498,9 +513,32 @@ function ProductPhotoCard({ product, onOpenAssets }: { product: ProductDetails; 
   );
 }
 
+function CatalogThumbnail({ item, index }: { item: ProductCatalogItem; index: number }) {
+  const [broken, setBroken] = useState(false);
+
+  if (!item.image || broken) {
+    return <span className="h-8 w-8 rounded-lg border border-[#f1ded1] bg-white flex-shrink-0" />;
+  }
+
+  return (
+    <img
+      src={previewAssetUrl(item.image, `${item.title || "catalog"}-${index}`)}
+      alt=""
+      onError={() => setBroken(true)}
+      className="h-8 w-8 rounded-lg object-cover border border-[#f1ded1] bg-white flex-shrink-0"
+    />
+  );
+}
+
 function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [brokenUrls, setBrokenUrls] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    setFocusedIndex(0);
+    setBrokenUrls(new Set());
+  }, [product.url]);
+
   const media = productMediaItems(product).filter((item) => !brokenUrls.has(item.url));
   const markBroken = (url?: string) => {
     if (!url) return;
@@ -518,6 +556,18 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   const catalogCsv = productCatalogToCsv(catalog);
   const hasMedia = media.length > 0;
   const hasCatalog = catalog.length > 0;
+
+  if (!hasMedia && !hasCatalog) {
+    return (
+      <div className="h-full rounded-2xl border border-dashed border-[#f1ded1] bg-white p-8 text-center shadow-sm flex flex-col items-center justify-center">
+        <Images className="w-10 h-10 text-[#ff690c] mb-3" />
+        <h3 className="text-lg font-black text-[#24170f]">No assets returned</h3>
+        <p className="mt-2 max-w-md text-sm text-[#8a7668]">
+          The scraper did not return product media or a Shopify catalog for this URL yet. Run a fresh check to retry extraction.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={`grid grid-cols-1 ${hasMedia && hasCatalog ? "lg:grid-cols-5" : ""} gap-4 sm:gap-5 h-full overflow-hidden`}>
@@ -601,7 +651,7 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
               {catalog.slice(0, 8).map((item, index) => (
                 <a key={`${item.url || item.handle || item.title}-${index}`} href={item.url || undefined} target="_blank" rel="noreferrer" className="grid grid-cols-[minmax(0,1fr)_86px_64px] gap-2 px-3 py-2 hover:bg-white transition-colors">
                   <span className="min-w-0 flex items-center gap-2">
-                    {item.image ? <img src={previewAssetUrl(item.image, `${item.title || "catalog"}-${index}`)} alt="" className="h-8 w-8 rounded-lg object-cover border border-[#f1ded1] bg-white flex-shrink-0" /> : <span className="h-8 w-8 rounded-lg border border-[#f1ded1] bg-white flex-shrink-0" />}
+                    <CatalogThumbnail item={item} index={index} />
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-black text-[#24170f]">{item.title || "Untitled product"}</span>
                       <span className="block truncate text-[10px] font-bold text-[#8a7668]">{item.vendor || item.productType || item.handle || "Shopify"}</span>
@@ -767,23 +817,50 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Overview");
   const [mounted, setMounted] = useState(false);
+  const [headerImageBroken, setHeaderImageBroken] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, []);
 
   useEffect(() => {
-    fetch(`/api/products/${productId}`)
-      .then(res => res.json())
+    const controller = new AbortController();
+
+    setLoading(true);
+    setProduct(null);
+
+    fetch(`/api/products/${productId}`, { signal: controller.signal })
+      .then((res) => res.json())
       .then((data: ProductDetails) => {
-        setProduct(data);
-        setLoading(false);
+        if (!controller.signal.aborted) setProduct(data);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        console.error("Failed to load product details", error);
+        setProduct({ url: "", error: "Could not load product details." });
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
       });
 
+    return () => controller.abort();
+  }, [productId]);
+
+  useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [productId, onClose]);
+  }, [onClose]);
+
+  useEffect(() => {
+    setHeaderImageBroken(false);
+  }, [productId, product?.image]);
 
   const derived = useMemo(() => {
     if (!product) return null;
@@ -828,20 +905,23 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-end">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-end isolate">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200" onClick={onClose} />
 
       <div 
-        className="peer group absolute top-0 inset-x-0 h-16 sm:h-20 z-10 flex items-start pt-3 justify-center cursor-pointer"
+        className="group absolute top-0 inset-x-0 h-20 sm:h-24 z-10 flex items-start pt-3 justify-center cursor-pointer"
         onClick={onClose}
       >
-        <div className="text-white/90 text-sm font-medium tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-md">
-          esc to close
+        <div className="text-white/90 text-sm font-medium tracking-wide opacity-80 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-md">
+          Esc to close
         </div>
       </div>
 
       <div 
-        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100vh-56px)] sm:h-[calc(100vh-72px)] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out transition-transform peer-hover:translate-y-4"
+        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100dvh-76px)] sm:h-[calc(100dvh-96px)] max-h-[900px] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Product details"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
@@ -862,8 +942,8 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
               </div>
               <div className="relative z-10 flex items-center gap-4 sm:gap-6">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#fffaf6] border border-[#f1ded1] flex items-center justify-center p-2">
-                  {product.image ? (
-                    <img src={previewAssetUrl(absoluteAssetUrl(product.image, product.url), `${product.title || "product"}-header`)} alt={product.title || "Product"} className="w-full h-full object-contain rounded-xl" />
+                  {product.image && !headerImageBroken ? (
+                    <img src={previewAssetUrl(absoluteAssetUrl(product.image, product.url), `${product.title || "product"}-header`)} alt={product.title || "Product"} onError={() => setHeaderImageBroken(true)} className="w-full h-full object-contain rounded-xl" />
                   ) : (
                     <Package className="w-8 h-8 text-[#ff690c]" />
                   )}
