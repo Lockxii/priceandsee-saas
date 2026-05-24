@@ -262,7 +262,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const shopifyMedia = shopifyProductEndpoints(product.url).length ? await fetchShopifyProductMedia(product.url) : [];
   const productCatalog = shopifyCatalogEndpoints(product.url).length ? await fetchShopifyProductCatalog(product.url) : [];
   const brandMetrics = await fetchFreshBrandMetrics(product.url, product.brandMetrics);
-  const productMedia = mergeMedia(shopifyMedia, savedMedia);
+  const productMedia = shopifyMedia.length ? mergeMedia(shopifyMedia) : mergeMedia(savedMedia);
   const image = productMedia[0]?.url || product.image;
   const responseProduct = { ...product, image, productMedia, productCatalog, brandMetrics };
 

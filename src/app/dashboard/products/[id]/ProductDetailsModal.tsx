@@ -493,7 +493,17 @@ function ProductPhotoCard({ product, onOpenAssets }: { product: ProductDetails; 
 
 function ProductAssetsPanel({ product }: { product: ProductDetails }) {
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const media = productMediaItems(product);
+  const [brokenUrls, setBrokenUrls] = useState<Set<string>>(() => new Set());
+  const media = productMediaItems(product).filter((item) => !brokenUrls.has(item.url));
+  const markBroken = (url?: string) => {
+    if (!url) return;
+    setBrokenUrls((current) => {
+      if (current.has(url)) return current;
+      const next = new Set(current);
+      next.add(url);
+      return next;
+    });
+  };
   const focusedMedia = media[Math.min(focusedIndex, Math.max(media.length - 1, 0))];
   const visibleMedia = media.slice(0, 12);
   const hiddenMediaCount = Math.max(0, media.length - visibleMedia.length);
@@ -523,7 +533,7 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
             <div className="xl:col-span-3 min-h-0 rounded-xl border border-[#f1ded1] bg-[#fffaf6] p-3 overflow-hidden flex flex-col">
               <button type="button" onClick={() => focusedMedia && window.open(previewAssetUrl(focusedMedia.url, `${product.title || "product"}-preview`), "_blank", "noopener,noreferrer")} className="group relative flex-1 min-h-0 rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center cursor-zoom-in">
                 {focusedMedia ? (
-                  <img src={previewAssetUrl(focusedMedia.url, `${product.title || "product"}-preview`)} alt={focusedMedia.alt || "Focused product media"} className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.025]" />
+                  <img src={previewAssetUrl(focusedMedia.url, `${product.title || "product"}-preview`)} alt={focusedMedia.alt || "Focused product media"} onError={() => markBroken(focusedMedia.url)} className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.025]" />
                 ) : null}
                 <span className="absolute left-3 top-3 rounded-full bg-white/90 border border-[#f1ded1] px-3 py-1 text-[11px] font-black text-[#24170f] shadow-sm">Click to open</span>
               </button>
@@ -546,7 +556,7 @@ function ProductAssetsPanel({ product }: { product: ProductDetails }) {
                 return (
                   <button key={`${item.url}-${index}`} type="button" onClick={() => setFocusedIndex(index)} aria-label={`Preview product image ${index + 1}`} className={`rounded-xl border p-1.5 overflow-hidden text-left transition-all ${active ? "border-[#ff690c] bg-white shadow-[0_0_0_2px_rgba(255,105,12,0.12)]" : "border-[#f1ded1] bg-[#fffaf6] hover:border-[#ff690c]/70"}`}>
                     <div className="aspect-square rounded-lg bg-white border border-[#f1ded1] overflow-hidden flex items-center justify-center">
-                      <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} alt={item.alt || `Product media ${index + 1}`} className="h-full w-full object-cover" />
+                      <img src={previewAssetUrl(item.url, `${product.title || "product"}-${index + 1}`)} alt={item.alt || `Product media ${index + 1}`} onError={() => markBroken(item.url)} className="h-full w-full object-cover" />
                     </div>
                     <p className="mt-1 min-w-0 truncate text-[10px] font-bold text-[#8a7668]">{sourceLabel(item.source || item.type)}</p>
                   </button>
