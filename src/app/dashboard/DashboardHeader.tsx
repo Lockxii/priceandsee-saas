@@ -15,7 +15,6 @@ const routeMeta: Array<{
     title: "URLs suivies",
     subtitle: "Produits concurrents que tu surveilles",
   },
-  { match: (p) => p === "/dashboard/monitoring", title: "Monitoring", subtitle: "Fraîcheur, échecs et mouvements de prix" },
   { match: (p) => p === "/dashboard/tools", title: "Outils", subtitle: "Workflows de scraping e-commerce" },
   { match: (p) => p === "/dashboard/product-finder", title: "Product Finder", subtitle: "Découvre les catalogues Shopify" },
   { match: (p) => p.startsWith("/dashboard/tools/"), title: "Outil", subtitle: "Lance une extraction ciblée" },

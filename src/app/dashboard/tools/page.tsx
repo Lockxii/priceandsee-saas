@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, ArrowRight, BadgePercent, Boxes, Cpu, Download, ImageDown, MessageSquareText, PackageSearch, Radar, SearchCode } from "lucide-react";
+import { Archive, ArrowRight, BadgePercent, Boxes, Cpu, Download, ImageDown, MessageSquareText, PackageSearch, SearchCode } from "lucide-react";
 
 const tools = [
   {
@@ -55,14 +55,7 @@ const tools = [
     title: "Tracked URLs",
     href: "/dashboard/products",
     icon: Archive,
-    description: "Keep product monitoring where it belongs: saved URLs, checks, details and downloads.",
-    status: "Core",
-  },
-  {
-    title: "Monitoring Center",
-    href: "/dashboard/monitoring",
-    icon: Radar,
-    description: "Bulk check stale or failing tracked products and spot real price movements.",
+    description: "Keep tracked products where they belong: saved URLs, checks, details and downloads.",
     status: "Core",
   },
 ];

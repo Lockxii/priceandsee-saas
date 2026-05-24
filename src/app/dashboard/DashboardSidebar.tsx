@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Link as LinkIcon,
   PackageSearch,
-  Radar,
   Wrench,
   Zap,
 } from "lucide-react";
@@ -29,12 +28,6 @@ const mainNav: NavItem[] = [
     icon: LinkIcon,
     tourId: "sidebar-products",
     match: (p) => p === "/dashboard/products" || p.startsWith("/dashboard/products/"),
-  },
-  {
-    href: "/dashboard/monitoring",
-    label: "Monitoring",
-    icon: Radar,
-    match: (p) => p === "/dashboard/monitoring",
   },
 ];
 

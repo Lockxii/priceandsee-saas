@@ -19,13 +19,13 @@ export function WorkflowBanner({ steps, title = "Prochaine étape" }: { steps: W
       <div className="rounded-2xl border border-[#d8e8c8] bg-[#f2f8ec] p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-black text-[#4f761d]">Parcours terminé</p>
-          <p className="text-sm text-[#5b4638] mt-1">Tes URLs sont suivies. Consulte le Monitoring pour les mouvements de prix.</p>
+          <p className="text-sm text-[#5b4638] mt-1">Tes URLs sont suivies. Continue avec les outils pour trouver médias, promos, reviews et concurrents.</p>
         </div>
         <Link
-          href="/dashboard/monitoring"
+          href="/dashboard/tools"
           className="inline-flex items-center gap-2 rounded-xl bg-white border border-[#d8e8c8] px-4 py-2 text-sm font-bold text-[#4f761d] hover:bg-[#fffaf6]"
         >
-          Ouvrir le Monitoring <ChevronRight className="h-4 w-4" />
+          Explorer les outils <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
     );

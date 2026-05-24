@@ -9,7 +9,6 @@ import {
   Bell,
   Link as LinkIcon,
   Plus,
-  Radar,
   TrendingDown,
 } from "lucide-react";
 import Link from "next/link";
@@ -109,15 +108,9 @@ export default async function DashboardOverview() {
           >
             <Plus className="h-4 w-4" /> Ajouter une URL
           </Link>
-          <Link
-            href="/dashboard/monitoring"
-            className="inline-flex items-center gap-2 rounded-xl border border-[var(--dash-border)] bg-[var(--dash-bg)] px-4 py-2.5 text-sm font-bold text-[var(--dash-ink-soft)] hover:bg-white transition-colors"
-          >
-            <Radar className="h-4 w-4" /> Monitoring
-          </Link>
           {priceDrops > 0 ? (
             <Link
-              href="/dashboard/monitoring"
+              href="/dashboard/products"
               className="inline-flex items-center gap-2 rounded-xl border border-[#d8e8c8] bg-[#f2f8ec] px-4 py-2.5 text-sm font-bold text-[#4f761d] hover:bg-[#e8f4dc] transition-colors"
             >
               <TrendingDown className="h-4 w-4" /> {priceDrops} baisse{priceDrops > 1 ? "s" : ""} détectée{priceDrops > 1 ? "s" : ""}

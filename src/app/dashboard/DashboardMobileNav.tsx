@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, LayoutDashboard, Link as LinkIcon, Radar, Wrench } from "lucide-react";
+import { Activity, LayoutDashboard, Link as LinkIcon, Wrench } from "lucide-react";
 
 const items = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard, match: (p: string) => p === "/dashboard" },
   { href: "/dashboard/products", label: "URLs", icon: LinkIcon, match: (p: string) => p.startsWith("/dashboard/products") },
-  { href: "/dashboard/monitoring", label: "Monitor", icon: Radar, match: (p: string) => p === "/dashboard/monitoring" },
   { href: "/dashboard/tools", label: "Tools", icon: Wrench, match: (p: string) => p.startsWith("/dashboard/tools") || p === "/dashboard/product-finder" },
   { href: "/dashboard/jobs", label: "Jobs", icon: Activity, match: (p: string) => p === "/dashboard/jobs" },
 ];
