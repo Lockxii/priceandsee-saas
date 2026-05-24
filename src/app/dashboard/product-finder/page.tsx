@@ -202,13 +202,13 @@ export default function ProductFinderPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
               {filteredProducts.length === 0 ? (
                 <div className="h-full flex items-center justify-center p-10 text-center text-[#8a7668]">
                   {products.length ? "No products match the current filters." : "Run Product Finder to load real Shopify catalog data."}
                 </div>
               ) : (
-                <div className="divide-y divide-[#f1ded1]">
+                <div className="divide-y divide-[#f1ded1] min-w-[720px]">
                   {filteredProducts.slice(0, 120).map((item, index) => (
                     <a key={`${item.store}-${item.handle || item.title}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="grid grid-cols-[minmax(0,1.5fr)_110px_90px_90px] gap-3 p-4 hover:bg-[#fffaf6] transition-colors">
                       <div className="min-w-0 flex items-center gap-3">
