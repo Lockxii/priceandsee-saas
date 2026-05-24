@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, ArrowRight, Boxes, Download, ImageDown, PackageSearch, Radar, SearchCode, Sparkles } from "lucide-react";
+import { Archive, ArrowRight, BadgePercent, Boxes, Cpu, Download, ImageDown, MessageSquareText, PackageSearch, Radar, SearchCode, Sparkles } from "lucide-react";
 
 const tools = [
   {
@@ -31,6 +31,27 @@ const tools = [
     status: "Generic",
   },
   {
+    title: "Promo Detector",
+    href: "/dashboard/tools/promo-detector",
+    icon: BadgePercent,
+    description: "Extract discount, shipping, urgency, bundle and promo-code messages from commerce pages.",
+    status: "Generic",
+  },
+  {
+    title: "Review Exporter",
+    href: "/dashboard/tools/review-exporter",
+    icon: MessageSquareText,
+    description: "Pull visible or structured product reviews into searchable rows and export CSV.",
+    status: "Generic",
+  },
+  {
+    title: "Tech Detector",
+    href: "/dashboard/tools/tech-detector",
+    icon: Cpu,
+    description: "Detect platform, analytics, ad pixels, review apps, payments, email/SMS and support tools.",
+    status: "Generic",
+  },
+  {
     title: "Tracked URLs",
     href: "/dashboard/products",
     icon: Archive,
@@ -47,12 +68,12 @@ const tools = [
 ];
 
 const ideas = [
-  "Review exporter from supported product pages",
   "Competitor product feed diff",
-  "Promo/banner detector",
-  "Store technology detector",
   "Price screenshot capture",
   "Ad/landing-page asset ripper",
+  "Checkout shipping estimator",
+  "Marketplace listing comparator",
+  "Theme/component cloner",
 ];
 
 export default function ToolsPage() {

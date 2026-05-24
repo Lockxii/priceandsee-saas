@@ -41,6 +41,28 @@ export type ProductSnapshot = {
   sources: string[];
 };
 
+export type PromoSignal = {
+  text: string;
+  source: string;
+  category: "discount" | "shipping" | "urgency" | "bundle" | "code" | "generic";
+};
+
+export type ReviewItem = {
+  author?: string;
+  rating?: number | null;
+  title?: string;
+  body?: string;
+  date?: string;
+  source: string;
+};
+
+export type TechSignal = {
+  name: string;
+  category: "platform" | "analytics" | "ads" | "reviews" | "payments" | "email" | "support" | "optimization" | "other";
+  confidence: "high" | "medium" | "low";
+  evidence: string[];
+};
+
 type FetchTextResult = { text: string; finalUrl: string; contentType: string };
 type JsonRecord = Record<string, unknown>;
 
@@ -628,5 +650,180 @@ export async function discoverProductUrls(inputUrl: URL) {
     platforms: fetched ? detectPlatforms(fetched.text, baseUrl) : [],
     products: found.slice(0, 250),
     sources: [...sources],
+  };
+}
+
+function textBlocks(html: string) {
+  const blocks = new Set<string>();
+  const selectors = [
+    /<[^>]+(?:class|id)=["'][^"']*(?:promo|banner|announcement|discount|coupon|offer|sale|shipping|bundle|timer|countdown|upsell|deal)[^"']*["'][^>]*>([\s\S]{0,900}?)<\/[^>]+>/gi,
+    /<button\b[^>]*>([\s\S]{0,300}?)<\/button>/gi,
+    /<span\b[^>]*>([\s\S]{0,220}?)<\/span>/gi,
+    /<p\b[^>]*>([\s\S]{0,350}?)<\/p>/gi,
+  ];
+  selectors.forEach((regex) => {
+    for (const match of html.matchAll(regex)) {
+      const cleaned = cleanText(match[1].replace(/<[^>]+>/g, " "));
+      if (cleaned && cleaned.length >= 4 && cleaned.length <= 220) blocks.add(cleaned);
+    }
+  });
+  return [...blocks];
+}
+
+function promoCategory(text: string): PromoSignal["category"] | null {
+  const lower = text.toLowerCase();
+  if (/(\d+\s?%|\$\s?\d+|€\s?\d+|£\s?\d+|save|off|sale|discount|deal)/i.test(text)) return "discount";
+  if (/(free shipping|livraison offerte|shipping|delivery|returns?)/i.test(text)) return "shipping";
+  if (/(limited|today|hurry|ends|countdown|only \d+|left|selling fast|almost gone)/i.test(text)) return "urgency";
+  if (/(bundle|2\s?for|3\s?for|buy .* get|bogo|pack)/i.test(text)) return "bundle";
+  if (/(code|coupon|promo code|use code|apply)/i.test(text)) return "code";
+  if (/(offer|gift|free|vip|subscribe)/i.test(lower)) return "generic";
+  return null;
+}
+
+function collectPromos(html: string, jsonLd: unknown[]) {
+  const signals: PromoSignal[] = [];
+  const seen = new Set<string>();
+  const add = (text: unknown, source: string) => {
+    const cleaned = cleanText(text);
+    if (!cleaned || cleaned.length < 4 || cleaned.length > 220) return;
+    const category = promoCategory(cleaned);
+    if (!category) return;
+    const key = `${category}:${cleaned.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    signals.push({ text: cleaned, source, category });
+  };
+
+  textBlocks(html).forEach((text) => add(text, "html"));
+  tags(html, "meta").forEach((tag) => add(readAttribute(tag, "content"), `meta:${readAttribute(tag, "property") || readAttribute(tag, "name") || "content"}`));
+  jsonLd.forEach((value) => walkJson(value, (record) => {
+    [record.description, record.name, record.offers, record.priceSpecification].forEach((entry) => {
+      if (typeof entry === "string") add(entry, "json-ld");
+      else if (isRecord(entry)) [entry.name, entry.description, entry.price, entry.priceCurrency].forEach((item) => add(item, "json-ld"));
+    });
+  }));
+  return signals.slice(0, 80);
+}
+
+function collectReviews(jsonLd: unknown[], html: string) {
+  const reviews: ReviewItem[] = [];
+  const seen = new Set<string>();
+  const add = (review: ReviewItem) => {
+    const key = `${review.author || ""}:${review.rating || ""}:${review.body || review.title || ""}`.toLowerCase();
+    if ((!review.body && !review.title && !review.rating) || seen.has(key)) return;
+    seen.add(key);
+    reviews.push(review);
+  };
+
+  jsonLd.forEach((value) => walkJson(value, (record) => {
+    if (!typeNames(record).some((type) => /review/i.test(type))) return;
+    const author = isRecord(record.author) ? firstString(record.author.name) : firstString(record.author);
+    const ratingRaw = isRecord(record.reviewRating) ? record.reviewRating : isRecord(record.rating) ? record.rating : undefined;
+    add({
+      author,
+      rating: numberFromValue(ratingRaw?.ratingValue || ratingRaw?.value || record.ratingValue),
+      title: firstString(record.name, record.headline),
+      body: firstString(record.reviewBody, record.description, record.text),
+      date: firstString(record.datePublished, record.dateCreated),
+      source: "json-ld",
+    });
+  }));
+
+  const reviewBlocks = html.match(/<[^>]+(?:class|id)=["'][^"']*(?:review|testimonial|rating)[^"']*["'][^>]*>[\s\S]{0,1200}?<\/[^>]+>/gi) || [];
+  reviewBlocks.slice(0, 80).forEach((block) => {
+    const text = cleanText(block.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " "));
+    if (!text || text.length < 20 || text.length > 700) return;
+    const rating = numberFromValue(block.match(/(?:rating|stars?)[^0-9]{0,20}([1-5](?:\.\d)?)/i)?.[1]);
+    add({ body: text, rating, source: "html-review-block" });
+  });
+
+  return reviews.slice(0, 120);
+}
+
+function detectTech(html: string, url: string) {
+  const haystack = `${html.slice(0, 800000)} ${url}`.toLowerCase();
+  const checks: Array<{ name: string; category: TechSignal["category"]; patterns: RegExp[] }> = [
+    { name: "Shopify", category: "platform", patterns: [/cdn\.shopify\.com/, /shopify\.theme/, /myshopify\.com/] },
+    { name: "WooCommerce", category: "platform", patterns: [/woocommerce/, /wp-content\/plugins\/woocommerce/, /wc-ajax/] },
+    { name: "Magento", category: "platform", patterns: [/magento_/, /x-magento/, /\/static\/frontend\//] },
+    { name: "BigCommerce", category: "platform", patterns: [/bigcommerce/, /cdn\d+\.bigcommerce\.com/] },
+    { name: "Klaviyo", category: "email", patterns: [/klaviyo/, /static\.klaviyo\.com/] },
+    { name: "Attentive", category: "email", patterns: [/attentive/, /cdn\.attn\.tv/] },
+    { name: "Postscript", category: "email", patterns: [/postscript/, /sdk\.postscript\.io/] },
+    { name: "Google Analytics", category: "analytics", patterns: [/google-analytics\.com/, /gtag\(/, /ga\(/] },
+    { name: "Google Tag Manager", category: "analytics", patterns: [/googletagmanager\.com/, /gtm-[a-z0-9]+/i] },
+    { name: "Meta Pixel", category: "ads", patterns: [/connect\.facebook\.net/, /fbq\(/, /facebook pixel/] },
+    { name: "TikTok Pixel", category: "ads", patterns: [/analytics\.tiktok\.com/, /ttq\./] },
+    { name: "Pinterest Tag", category: "ads", patterns: [/ct\.pinterest\.com/, /pintrk\(/] },
+    { name: "Yotpo", category: "reviews", patterns: [/yotpo/, /staticw2\.yotpo\.com/] },
+    { name: "Judge.me", category: "reviews", patterns: [/judge\.me/, /judgeme/] },
+    { name: "Loox", category: "reviews", patterns: [/loox/, /looxcdn/] },
+    { name: "Trustpilot", category: "reviews", patterns: [/trustpilot/] },
+    { name: "Stripe", category: "payments", patterns: [/js\.stripe\.com/, /stripe\./] },
+    { name: "PayPal", category: "payments", patterns: [/paypal\.com\/sdk/, /paypalobjects/] },
+    { name: "Afterpay", category: "payments", patterns: [/afterpay/, /clearpay/] },
+    { name: "Klarna", category: "payments", patterns: [/klarna/] },
+    { name: "Gorgias", category: "support", patterns: [/gorgias/] },
+    { name: "Intercom", category: "support", patterns: [/intercom/] },
+    { name: "Zendesk", category: "support", patterns: [/zendesk/, /zopim/] },
+    { name: "Hotjar", category: "optimization", patterns: [/hotjar/] },
+    { name: "VWO", category: "optimization", patterns: [/visualwebsiteoptimizer/, /vwo\./] },
+    { name: "Optimizely", category: "optimization", patterns: [/optimizely/] },
+  ];
+
+  return checks.flatMap((check) => {
+    const evidence = check.patterns.filter((pattern) => pattern.test(haystack)).map((pattern) => pattern.source).slice(0, 4);
+    if (!evidence.length) return [];
+    return [{ name: check.name, category: check.category, confidence: evidence.length > 1 ? "high" as const : "medium" as const, evidence }];
+  });
+}
+
+export async function buildPromoReport(inputUrl: URL) {
+  const fetched = await fetchText(inputUrl.toString());
+  const jsonLd = parseJsonLd(fetched.text);
+  const promos = collectPromos(fetched.text, jsonLd);
+  return {
+    url: inputUrl.toString(),
+    finalUrl: fetched.finalUrl,
+    platforms: detectPlatforms(fetched.text, fetched.finalUrl),
+    promos,
+    counts: promos.reduce<Record<string, number>>((acc, promo) => {
+      acc[promo.category] = (acc[promo.category] || 0) + 1;
+      return acc;
+    }, {}),
+    sources: ["html", ...(jsonLd.length ? ["json-ld"] : [])],
+  };
+}
+
+export async function buildReviewReport(inputUrl: URL) {
+  const fetched = await fetchText(inputUrl.toString());
+  const jsonLd = parseJsonLd(fetched.text);
+  const reviews = collectReviews(jsonLd, fetched.text);
+  const ratings = reviews.map((review) => review.rating).filter((rating): rating is number => typeof rating === "number" && Number.isFinite(rating));
+  return {
+    url: inputUrl.toString(),
+    finalUrl: fetched.finalUrl,
+    platforms: detectPlatforms(fetched.text, fetched.finalUrl),
+    reviews,
+    averageRating: ratings.length ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : null,
+    sources: ["json-ld", "html-review-block"].filter((source) => reviews.some((review) => review.source === source)),
+  };
+}
+
+export async function buildTechReport(inputUrl: URL) {
+  const fetched = await fetchText(inputUrl.toString());
+  const technologies = detectTech(fetched.text, fetched.finalUrl);
+  const platforms = detectPlatforms(fetched.text, fetched.finalUrl);
+  return {
+    url: inputUrl.toString(),
+    finalUrl: fetched.finalUrl,
+    platforms,
+    technologies,
+    categories: technologies.reduce<Record<string, number>>((acc, item) => {
+      acc[item.category] = (acc[item.category] || 0) + 1;
+      return acc;
+    }, {}),
+    sources: ["html", "scripts", "links"],
   };
 }
