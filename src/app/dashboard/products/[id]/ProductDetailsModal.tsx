@@ -909,16 +909,16 @@ export function ProductDetailsModal({ productId, onClose }: { productId: string,
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200" onClick={onClose} />
 
       <div 
-        className="group absolute top-0 inset-x-0 h-20 sm:h-24 z-10 flex items-start pt-3 justify-center cursor-pointer"
+        className="group absolute top-0 inset-x-0 h-28 sm:h-32 z-10 flex items-start pt-4 justify-center cursor-pointer"
         onClick={onClose}
       >
-        <div className="text-white/90 text-sm font-medium tracking-wide opacity-80 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-md">
+        <div className="text-white/90 text-sm font-medium tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/20 px-4 py-1.5 rounded-full backdrop-blur-md pointer-events-none">
           Esc to close
         </div>
       </div>
 
       <div 
-        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100dvh-76px)] sm:h-[calc(100dvh-96px)] max-h-[900px] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out"
+        className="bg-[#fffaf6] w-[100vw] sm:w-[calc(100vw-32px)] h-[calc(100dvh-112px)] sm:h-[calc(100dvh-132px)] max-h-[860px] rounded-t-[24px] sm:rounded-t-[32px] shadow-[0_-10px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col z-20 animate-in slide-in-from-bottom duration-200 ease-out"
         role="dialog"
         aria-modal="true"
         aria-label="Product details"
